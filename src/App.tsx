@@ -1,35 +1,48 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { SessionModeSelector } from "./components/SessionModeSelector";
+import type { SessionMode } from "./types";
+
+type AppView = "onboarding" | "main";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [view, setView] = useState<AppView>("onboarding");
+  const [_mode, setMode] = useState<SessionMode | null>(null);
+
+  const handleModeSelect = (mode: SessionMode) => {
+    setMode(mode);
+    setView("main");
+  };
+
+  const handleSampleClick = () => {
+    setMode("understand");
+    setView("main");
+  };
+
+  if (view === "onboarding") {
+    return (
+      <div className="min-h-screen bg-[#F9F9F7] flex items-center justify-center p-8">
+        <div className="max-w-4xl w-full">
+          <h1 className="font-headline text-5xl font-black text-center mb-2 tracking-tight">
+            Reading Provocateur
+          </h1>
+          <p className="font-body text-center text-[#666] mb-12 text-lg">
+            AI가 던지는 도발적 질문으로 수동적 읽기를 능동적 학습으로
+          </p>
+          <SessionModeSelector
+            selected={null}
+            onSelect={handleModeSelect}
+            onSampleClick={handleSampleClick}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen bg-[#F9F9F7]">
+      <p className="p-8 font-ui">Main view — PDF viewer coming soon</p>
+    </div>
+  );
 }
 
-export default App
+export default App;

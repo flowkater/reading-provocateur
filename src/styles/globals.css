@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* Newsprint Design System Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Lora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* === Theme Variables === */
+@theme {
+  --color-newsprint-bg: #F9F9F7;
+  --color-newsprint-text: #111111;
+  --color-newsprint-accent: #CC0000;
+  --color-newsprint-highlight: rgba(254, 243, 199, 0.6);
+  --color-newsprint-border: #111111;
+  --color-newsprint-muted: #666666;
+
+  --font-headline: "Playfair Display", serif;
+  --font-body: "Lora", serif;
+  --font-ui: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* === Base Styles === */
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-newsprint-bg);
+  color: var(--color-newsprint-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Newsprint Utilities === */
+.font-headline {
+  font-family: var(--font-headline);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+.font-data {
+  font-family: var(--font-mono);
+}
+
+/* Hard offset shadow for hover */
+.shadow-hard {
+  box-shadow: 4px 4px 0px 0px #111;
+}
+
+.shadow-hard-sm {
+  box-shadow: 2px 2px 0px 0px #111;
+}
+
+/* Newsprint button base */
+.btn-newsprint {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  border: 2px solid #111;
+  border-radius: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-newsprint:hover {
+  background-color: #111;
+  color: #F9F9F7;
+  box-shadow: 4px 4px 0px 0px #111;
+}
+
+.btn-newsprint-inverted {
+  background-color: #111;
+  color: #F9F9F7;
+}
+
+.btn-newsprint-inverted:hover {
+  background-color: #F9F9F7;
+  color: #111;
+}
+
+/* Newsprint input */
+.input-newsprint {
+  border-bottom: 2px solid #111;
+  background: transparent;
+  font-family: var(--font-mono);
+  border-radius: 0;
+  outline: none;
+}
+
+.input-newsprint:focus {
+  border-bottom-color: var(--color-newsprint-accent);
+}
+
+/* Zero radius everywhere */
+* {
+  border-radius: 0 !important;
+}
+
+/* Highlight color */
+.highlight-yellow {
+  background-color: rgba(254, 243, 199, 0.6);
+}
+
+/* 3-dot pulse loading */
+@keyframes pulse-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.loading-dot {
+  animation: pulse-dot 1.4s infinite ease-in-out;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
