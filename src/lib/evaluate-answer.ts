@@ -12,6 +12,10 @@ export interface EvaluateAnswerInput {
   contextExcerpt: string;
 }
 
+function isJsonParseError(err: unknown): boolean {
+  return err instanceof SyntaxError || (err instanceof Error && err.name === "ZodError");
+}
+
 export async function evaluateAnswer(
   provider: AiProvider,
   input: EvaluateAnswerInput
@@ -27,8 +31,11 @@ export async function evaluateAnswer(
 
   try {
     return await provider.evaluateAnswer(prompt);
-  } catch {
-    // 1회 재시도
-    return await provider.evaluateAnswer(prompt);
+  } catch (err) {
+    if (isJsonParseError(err)) {
+      // JSON 파싱 실패만 1회 재시도
+      return await provider.evaluateAnswer(prompt);
+    }
+    throw err;
   }
 }

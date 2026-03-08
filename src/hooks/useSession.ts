@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Book, SessionMode, SessionContext } from "../types";
 import { saveBook, saveSession, updateSession as updateSessionStore } from "../lib/store";
@@ -7,6 +7,31 @@ export function useSession() {
   const [mode, setMode] = useState<SessionMode | null>(null);
   const [book, setBook] = useState<Book | null>(null);
   const [sessionCtx, setSessionCtx] = useState<SessionContext | null>(null);
+  const sessionCtxRef = useRef<SessionContext | null>(null);
+
+  // Keep ref in sync for beforeunload handler
+  useEffect(() => {
+    sessionCtxRef.current = sessionCtx;
+  }, [sessionCtx]);
+
+  // M5: beforeunload → endSession
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const ctx = sessionCtxRef.current;
+      if (ctx && !ctx.endedAt) {
+        updateSessionStore(ctx.bookId, { endedAt: new Date().toISOString() });
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Also end session on unmount
+      const ctx = sessionCtxRef.current;
+      if (ctx && !ctx.endedAt) {
+        updateSessionStore(ctx.bookId, { endedAt: new Date().toISOString() });
+      }
+    };
+  }, []);
 
   const selectMode = useCallback((m: SessionMode) => {
     setMode(m);

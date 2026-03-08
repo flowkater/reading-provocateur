@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { AiProvider } from "../lib/ai-provider";
 import type {
@@ -8,12 +8,12 @@ import type {
   ConfidenceLevel,
   SessionMode,
 } from "../types";
+import { generateProvocation as genProv } from "../lib/generate-provocation";
+import { evaluateAnswer as evalAnswer } from "../lib/evaluate-answer";
+import { generateModelAnswer as genModelAnswer } from "../lib/generate-model-answer";
 import { extractContext } from "../lib/extract-context";
-import { buildProvocationPrompt } from "../lib/prompts";
-import { buildEvaluationPrompt } from "../lib/prompts";
-import { buildModelAnswerPrompt } from "../lib/prompts";
 import { buildReviewItem } from "../lib/build-review-items";
-import { saveProvocation, updateProvocation, saveReviewItem, getReviewItems } from "../lib/store";
+import { saveProvocation, updateProvocation, saveReviewItem, getReviewItems, getProvocations } from "../lib/store";
 
 interface FlowContext {
   bookId: string;
@@ -35,6 +35,14 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
   const [history, setHistory] = useState<Provocation[]>([]);
   const prevStateRef = useRef<SidePanelState>("empty");
 
+  // m2: 초기화 시 store에서 history 복원
+  useEffect(() => {
+    const stored = getProvocations(context.bookId);
+    if (stored.length > 0) {
+      setHistory(stored);
+    }
+  }, [context.bookId]);
+
   const startProvocation = useCallback(
     async (input: StartInput) => {
       prevStateRef.current = state;
@@ -47,17 +55,17 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
           .filter((r) => r.status === "weak")
           .map((r) => r.conceptLabel);
 
-        const prompt = buildProvocationPrompt({
+        const result = await genProv(provider, {
           bookTitle: context.bookTitle,
           sessionMode: context.sessionMode,
           intent: input.intent,
           selectedText: input.selectedText,
           contextExcerpt,
+          pageText: context.pageText,
+          pageNumber: context.pageNumber,
           recentProvocations: history.slice(-3).map((p) => ({ question: p.question })),
           recentWeakConcepts,
         });
-
-        const result = await provider.generateProvocation(prompt);
 
         const prov: Provocation = {
           id: uuidv4(),
@@ -101,7 +109,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
       updateProvocation(currentProvocation.id, { answer, confidence, answeredAt });
 
       try {
-        const prompt = buildEvaluationPrompt({
+        const evalResult = await evalAnswer(provider, {
           sessionMode: context.sessionMode,
           question: currentProvocation.question,
           answer,
@@ -109,8 +117,6 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
           selectedText: currentProvocation.selectedText,
           contextExcerpt: currentProvocation.contextExcerpt,
         });
-
-        const evalResult = await provider.evaluateAnswer(prompt);
 
         const evaluation = {
           verdict: evalResult.verdict,
@@ -127,7 +133,6 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         updateProvocation(currentProvocation.id, { evaluation });
 
         if (evalResult.verdict === "correct") {
-          // Build review item if needed
           const reviewItem = buildReviewItem(withEval);
           if (reviewItem) saveReviewItem(reviewItem);
           setHistory((prev) => [...prev, withEval]);
@@ -150,7 +155,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
       setState("evaluating");
 
       try {
-        const prompt = buildEvaluationPrompt({
+        const retryResult = await evalAnswer(provider, {
           sessionMode: context.sessionMode,
           question: currentProvocation.question,
           answer: retryAnswer,
@@ -158,8 +163,6 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
           selectedText: currentProvocation.selectedText,
           contextExcerpt: currentProvocation.contextExcerpt,
         });
-
-        const retryResult = await provider.evaluateAnswer(prompt);
 
         const updatedEval = {
           ...currentProvocation.evaluation,
@@ -179,19 +182,16 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
           setState("saved");
         } else {
           // 2nd failure → model answer
-          try {
-            const maPrompt = buildModelAnswerPrompt({
-              question: currentProvocation.question,
-              answer: retryAnswer,
-              contextExcerpt: currentProvocation.contextExcerpt,
-              missingPoints: retryResult.missingPoints,
-            });
-            const modelAnswer = await provider.generateModelAnswer(maPrompt);
+          const modelAnswer = await genModelAnswer(provider, {
+            question: currentProvocation.question,
+            answer: retryAnswer,
+            contextExcerpt: currentProvocation.contextExcerpt,
+            missingPoints: retryResult.missingPoints,
+          });
+          if (modelAnswer !== "모범 답안을 생성할 수 없습니다.") {
             const withMA = { ...updated, modelAnswer };
             setCurrentProvocation(withMA);
             updateProvocation(currentProvocation.id, { modelAnswer });
-          } catch {
-            // ignore model answer failure
           }
 
           const reviewItem = buildReviewItem(updated);
@@ -216,24 +216,19 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
 
   const showAnswer = useCallback(async () => {
     if (!currentProvocation) return;
-    try {
-      const prompt = buildModelAnswerPrompt({
-        question: currentProvocation.question,
-        answer: currentProvocation.answer ?? "",
-        contextExcerpt: currentProvocation.contextExcerpt,
-        missingPoints: currentProvocation.evaluation?.missingPoints ?? [],
-      });
-      const modelAnswer = await provider.generateModelAnswer(prompt);
-      const updated = { ...currentProvocation, modelAnswer };
-      setCurrentProvocation(updated);
-      updateProvocation(currentProvocation.id, { modelAnswer });
+    const modelAnswer = await genModelAnswer(provider, {
+      question: currentProvocation.question,
+      answer: currentProvocation.answer ?? "",
+      contextExcerpt: currentProvocation.contextExcerpt,
+      missingPoints: currentProvocation.evaluation?.missingPoints ?? [],
+    });
+    const updated = { ...currentProvocation, modelAnswer };
+    setCurrentProvocation(updated);
+    updateProvocation(currentProvocation.id, { modelAnswer });
 
-      const reviewItem = buildReviewItem(updated);
-      if (reviewItem) saveReviewItem(reviewItem);
-      setState("modelAnswer");
-    } catch {
-      setState("modelAnswer");
-    }
+    const reviewItem = buildReviewItem(updated);
+    if (reviewItem) saveReviewItem(reviewItem);
+    setState("modelAnswer");
   }, [provider, currentProvocation]);
 
   const saveAndNext = useCallback(() => {

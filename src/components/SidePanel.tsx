@@ -55,7 +55,7 @@ export function SidePanel({
     onProvoke(intent);
   };
 
-  const showProvokeButton = state === "empty" || state === "saved" || state === "question";
+  const showProvokeButton = state === "empty" || state === "saved";
 
   return (
     <div className="h-full flex flex-col border-l-2 border-[#111] bg-[#F9F9F7]">
