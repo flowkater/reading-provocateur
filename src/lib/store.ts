@@ -27,8 +27,14 @@ function getJson<T>(storage: Storage, key: string, fallback: T): T {
   }
 }
 
-function setJson(storage: Storage, key: string, value: unknown): void {
-  storage.setItem(key, JSON.stringify(value));
+function setJson(storage: Storage, key: string, value: unknown): boolean {
+  try {
+    storage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn(`[store] Failed to write ${key}:`, (err as Error).message);
+    return false;
+  }
 }
 
 // --- Books ---
@@ -107,12 +113,16 @@ export function saveSettings(settings: Settings): void {
   const { apiKey, ...rest } = settings;
   setJson(localStorage, KEYS.settings, rest);
 
-  if (settings.rememberKey) {
-    localStorage.setItem(KEYS.apiKey, apiKey);
-    sessionStorage.removeItem(KEYS.apiKey);
-  } else {
-    sessionStorage.setItem(KEYS.apiKey, apiKey);
-    localStorage.removeItem(KEYS.apiKey);
+  try {
+    if (settings.rememberKey) {
+      localStorage.setItem(KEYS.apiKey, apiKey);
+      sessionStorage.removeItem(KEYS.apiKey);
+    } else {
+      sessionStorage.setItem(KEYS.apiKey, apiKey);
+      localStorage.removeItem(KEYS.apiKey);
+    }
+  } catch (err) {
+    console.warn(`[store] Failed to write apiKey:`, (err as Error).message);
   }
 }
 
