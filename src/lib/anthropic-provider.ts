@@ -61,7 +61,11 @@ export class AnthropicProvider implements AiProvider {
 
     try {
       return parse(block.text);
-    } catch {
+    } catch (parseErr) {
+      // Only retry on JSON parse / schema validation errors, not network errors
+      if (parseErr instanceof TypeError && parseErr.message.includes("fetch")) {
+        throw parseErr;
+      }
       // 1회 재시도: 강화 프롬프트
       const retryResponse = await this.client.messages.create({
         model: this.model,
