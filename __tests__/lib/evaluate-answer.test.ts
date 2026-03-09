@@ -94,26 +94,13 @@ describe("evaluateAnswer", () => {
     expect(result.verdict).toBe("correct");
   });
 
-  it("AI JSON 파싱 실패 → 1회 재시도", async () => {
-    let callCount = 0;
+  it("AI JSON 파싱 실패 → provider에 위임 (재시도는 provider 책임)", async () => {
     const provider: AiProvider = {
       generateProvocation: vi.fn(),
-      evaluateAnswer: vi.fn().mockImplementation(async () => {
-        callCount++;
-        if (callCount === 1) {
-          throw new SyntaxError("Invalid JSON");
-        }
-        return {
-          verdict: "partial",
-          whatWasRight: [],
-          missingPoints: [],
-          followUpQuestion: null,
-        };
-      }),
+      evaluateAnswer: vi.fn().mockRejectedValue(new SyntaxError("Invalid JSON")),
       generateModelAnswer: vi.fn(),
     };
-    const result = await evaluateAnswer(provider, makeInput());
-    expect(result.verdict).toBe("partial");
-    expect(callCount).toBe(2);
+    await expect(evaluateAnswer(provider, makeInput())).rejects.toThrow();
+    expect(provider.evaluateAnswer).toHaveBeenCalledTimes(1);
   });
 });

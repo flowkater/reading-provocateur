@@ -14,10 +14,6 @@ export interface GenerateProvocationInput {
   recentWeakConcepts: string[];
 }
 
-function isJsonParseError(err: unknown): boolean {
-  return err instanceof SyntaxError || (err instanceof Error && err.name === "ZodError");
-}
-
 export async function generateProvocation(
   provider: AiProvider,
   input: GenerateProvocationInput
@@ -32,13 +28,5 @@ export async function generateProvocation(
     recentWeakConcepts: input.recentWeakConcepts,
   });
 
-  try {
-    return await provider.generateProvocation(prompt);
-  } catch (err) {
-    if (isJsonParseError(err)) {
-      // JSON 파싱 실패만 1회 재시도
-      return await provider.generateProvocation(prompt);
-    }
-    throw err;
-  }
+  return provider.generateProvocation(prompt);
 }

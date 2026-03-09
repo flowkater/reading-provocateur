@@ -109,31 +109,14 @@ describe("generateProvocation", () => {
     expect(call.user).toContain("SOLID");
   });
 
-  it("AI JSON 파싱 실패 → 1회 재시도 후 성공", async () => {
-    let callCount = 0;
-    const provider: AiProvider = {
-      generateProvocation: vi.fn().mockImplementation(async () => {
-        callCount++;
-        if (callCount === 1) {
-          throw new SyntaxError("Invalid JSON");
-        }
-        return { kind: "recall", question: "재시도 성공" };
-      }),
-      evaluateAnswer: vi.fn(),
-      generateModelAnswer: vi.fn(),
-    };
-    const result = await generateProvocation(provider, makeInput());
-    expect(result.question).toBe("재시도 성공");
-    expect(callCount).toBe(2);
-  });
-
-  it("2회 연속 파싱 실패 → Error throw", async () => {
+  it("AI JSON 파싱 실패 → provider에 위임 (재시도는 provider 책임)", async () => {
     const provider: AiProvider = {
       generateProvocation: vi.fn().mockRejectedValue(new SyntaxError("Invalid JSON")),
       evaluateAnswer: vi.fn(),
       generateModelAnswer: vi.fn(),
     };
     await expect(generateProvocation(provider, makeInput())).rejects.toThrow();
+    expect(provider.generateProvocation).toHaveBeenCalledTimes(1);
   });
 
   it("프롬프트에 bookTitle, sessionMode, intent, selectedText 포함 확인", async () => {
