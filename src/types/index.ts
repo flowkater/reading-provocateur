@@ -89,6 +89,23 @@ export interface ReviewItem {
   createdAt: string;
 }
 
+// === Content Types ===
+export type ContentType = "pdf" | "article";
+
+export interface Article {
+  id: string;
+  url: string;
+  title: string;
+  content: string;
+  htmlContent: string;
+  charCount: number;
+  addedAt: string;
+}
+
+export type ContentSource =
+  | { type: "pdf"; book: Book; fileUrl: string }
+  | { type: "article"; article: Article };
+
 export interface Settings {
   provider: "anthropic";
   apiKey: string;
