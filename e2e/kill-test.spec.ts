@@ -330,6 +330,70 @@ test.describe("Kill Test — E2E Full Flow", () => {
     expect(elapsed).toBeLessThan(90_000);
   });
 
+  test("종합 E2E: 10단계 전체 플로우 검증", async ({ page }) => {
+    test.setTimeout(90_000);
+    await mockAnthropicApi(page);
+
+    // Step 1: 온보딩 → 모드 선택
+    await page.goto("/");
+    const modeBtn = page.getByText(/이해/i).first();
+    await expect(modeBtn).toBeVisible({ timeout: 10_000 });
+    await modeBtn.click();
+
+    // Step 2: 메인 뷰 전환 — NavBar 존재 확인
+    const nav = page.locator("nav");
+    await expect(nav).toBeVisible({ timeout: 5_000 });
+    await expect(nav.getByText("Settings")).toBeVisible();
+
+    // API Key 설정
+    await page.getByText("Settings").first().click();
+    await page.locator('input[type="password"]').fill("sk-ant-mock-key");
+    await page.getByText("Done").click();
+
+    // Step 3: PDF 로드
+    await loadSamplePdf(page);
+    await expect(page.locator(".react-pdf__Document")).toBeVisible();
+
+    // Step 4: 텍스트 선택 → FloatingToolbar 표시
+    await simulateTextSelection(page);
+    const provokeBtn = page.getByText("Provoke").first();
+    await expect(provokeBtn).toBeVisible({ timeout: 5_000 });
+
+    // Step 5: Provoke 클릭 → Intent 선택
+    await provokeBtn.click();
+    const intentChip = page.getByText("핵심");
+    await expect(intentChip).toBeVisible({ timeout: 3_000 });
+    await intentChip.click();
+
+    // Step 6: 도발 질문 텍스트 표시
+    await expect(page.getByText("이 개념의 핵심 원리를 설명해보세요.")).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Step 7: 답변 입력 + 제출
+    const textarea = page.locator('textarea[placeholder="답변을 입력하세요..."]');
+    await expect(textarea).toBeVisible();
+    await textarea.fill("핵심 원리는 테스트입니다.");
+    await page.getByText("중간").click();
+    await page.getByText("제출").click();
+
+    // Step 8: 평가 결과 표시 (verdict 텍스트 확인)
+    await expect(page.getByText("부분 정답")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("빠진 부분")).toBeVisible();
+
+    // Step 9: 정답 보기
+    await page.getByText("정답 보기").click();
+    await expect(page.getByText("모범 답안", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/이 개념의 핵심은/)).toBeVisible();
+
+    // Step 10: 저장 → 도발해줘 버튼 다시 표시 (Export 가능 상태)
+    await page.getByText("저장하고 넘어가기").click();
+    await expect(page.getByText("도발해줘")).toBeVisible({ timeout: 5_000 });
+
+    // Export 버튼 확인
+    await expect(page.getByText("Export")).toBeVisible();
+  });
+
   test("Newsprint 디자인 시스템 적용 확인", async ({ page }) => {
     await page.goto("/");
     const body = page.locator("body");
