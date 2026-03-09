@@ -40,12 +40,30 @@ export interface HighlightArea {
   height: number;
 }
 
+export type SelectionData =
+  | {
+      contentType: "pdf";
+      pageNumber: number;
+      highlightAreas: HighlightArea[];
+    }
+  | {
+      contentType: "article" | "text";
+      pageNumber: 1;
+      quote: string;
+      contextBefore: string;
+      contextAfter: string;
+    };
+
 export interface Annotation {
   id: string;
   bookId: string;
   pageNumber: number;
+  contentType: ContentType;
   selectedText: string;
-  highlightAreas: HighlightArea[];
+  highlightAreas?: HighlightArea[];
+  quote?: string;
+  contextBefore?: string;
+  contextAfter?: string;
   intent: HighlightIntent | null;
   createdAt: string;
 }
@@ -90,7 +108,7 @@ export interface ReviewItem {
 }
 
 // === Content Types ===
-export type ContentType = "pdf" | "article";
+export type ContentType = "pdf" | "article" | "text";
 
 export interface Article {
   id: string;
@@ -102,9 +120,73 @@ export interface Article {
   addedAt: string;
 }
 
+export interface PlainTextDocument {
+  id: string;
+  title: string;
+  content: string;
+  charCount: number;
+  addedAt: string;
+}
+
+export interface RecentDocumentRecord {
+  id: string;
+  type: ContentType;
+  title: string;
+  addedAt: string;
+  lastOpenedAt: string;
+  lastSessionId: string;
+  pdfMeta?: {
+    fileName: string;
+    pdfBlobId?: string;
+    fingerprint: string;
+    size: number;
+    mimeType: string;
+    persistedAt?: string;
+  };
+  articleSnapshot?: Article;
+  textSnapshot?: PlainTextDocument;
+}
+
+export interface ReadingSessionRecord {
+  id: string;
+  documentId: string;
+  documentType: ContentType;
+  title: string;
+  mode: SessionMode;
+  startedAt: string;
+  endedAt: string | null;
+  currentPage: number;
+  firstPage: number;
+  lastPage: number;
+  restorable: boolean;
+  pdfResume?: {
+    fileName: string;
+    pdfBlobId?: string;
+    fingerprint: string;
+  };
+  articleResume?: {
+    articleId: string;
+  };
+  textResume?: {
+    textId: string;
+  };
+}
+
+export interface StoredPdfBlobRecord {
+  id: string;
+  blob: Blob;
+  fileName: string;
+  fingerprint: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+  lastAccessedAt: string;
+}
+
 export type ContentSource =
   | { type: "pdf"; book: Book; fileUrl: string }
-  | { type: "article"; article: Article };
+  | { type: "article"; article: Article }
+  | { type: "text"; text: PlainTextDocument };
 
 export interface Settings {
   provider: "anthropic";

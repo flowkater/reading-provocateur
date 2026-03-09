@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+type AnthropicSystemMessage = string | Array<{ text: string }>;
+type AnthropicRequestBody = {
+  system?: AnthropicSystemMessage;
+};
+
 const MOCK_ARTICLE_HTML = `
 <html>
 <head><title>테스트 아티클 제목</title></head>
@@ -36,10 +41,10 @@ async function mockArticleFetch(page: import("@playwright/test").Page) {
 // Helper: intercept Anthropic API calls
 async function mockAnthropicApi(page: import("@playwright/test").Page) {
   await page.route("https://api.anthropic.com/v1/messages", async (route) => {
-    const postData = route.request().postDataJSON();
+    const postData = route.request().postDataJSON() as AnthropicRequestBody;
     const systemMsg = Array.isArray(postData.system)
-      ? postData.system.map((s: any) => s.text).join(" ")
-      : postData.system || "";
+      ? postData.system.map((s) => s.text).join(" ")
+      : postData.system ?? "";
 
     if (systemMsg.includes("도발") || systemMsg.includes("provoc")) {
       await route.fulfill({
@@ -134,23 +139,30 @@ test.describe("Article Flow E2E", () => {
       const articleContent = document.querySelector(".article-content");
       if (!articleContent) throw new Error("Article content not found");
 
+      const fakeRange = {
+        getClientRects: () => [
+          { left: 200, top: 300, right: 500, bottom: 320, width: 300, height: 20 },
+        ],
+        getBoundingClientRect: () => ({
+          left: 200,
+          top: 300,
+          right: 500,
+          bottom: 320,
+          width: 300,
+          height: 20,
+        }),
+      } as unknown as Range;
+
       const fakeSelection = {
         isCollapsed: false,
         toString: () => "도발 플로우를 테스트하기 위한",
-        getRangeAt: () => ({
-          getClientRects: () => [
-            { left: 200, top: 300, right: 500, bottom: 320, width: 300, height: 20 },
-          ],
-          getBoundingClientRect: () => ({
-            left: 200, top: 300, right: 500, bottom: 320, width: 300, height: 20,
-          }),
-        }),
+        getRangeAt: () => fakeRange,
         rangeCount: 1,
         removeAllRanges: () => {},
         addRange: () => {},
-      };
+      } as unknown as Selection;
       const originalGetSelection = window.getSelection;
-      (window as any).getSelection = () => fakeSelection;
+      window.getSelection = () => fakeSelection;
 
       const container = articleContent.closest("[class*='overflow-auto']") || articleContent.parentElement;
       if (container) {
@@ -158,7 +170,7 @@ test.describe("Article Flow E2E", () => {
       }
 
       setTimeout(() => {
-        (window as any).getSelection = originalGetSelection;
+        window.getSelection = originalGetSelection;
       }, 100);
     });
 

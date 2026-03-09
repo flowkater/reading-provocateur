@@ -1,10 +1,33 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Article } from "../../src/types";
+import type { ReactNode } from "react";
+import type { HighlightIntent } from "../../src/types";
+
+interface MockPdfViewerProps {
+  currentPage: number;
+  onTextSelect: (text: string, position: { x: number; y: number }) => void;
+}
+
+interface MockArticleViewerProps {
+  article: {
+    title: string;
+    content: string;
+  };
+  onTextSelect: (text: string, position: { x: number; y: number }) => void;
+}
+
+interface MockSidePanelProps {
+  state: string;
+  onOpenSettings: () => void;
+}
+
+interface MockToolbarProps {
+  onProvoke: (intent: HighlightIntent) => void;
+}
 
 // Mock PdfViewer
-const MockPdfViewer = (props: any) => (
+const MockPdfViewer = (props: MockPdfViewerProps) => (
   <div data-testid="pdf-viewer" data-page={props.currentPage}>
     <button
       data-testid="simulate-text-select"
@@ -22,7 +45,7 @@ vi.mock("../../src/components/PdfViewer", () => ({
 
 // Mock ArticleViewer to expose text selection
 vi.mock("../../src/components/ArticleViewer", () => ({
-  ArticleViewer: (props: any) => (
+  ArticleViewer: (props: MockArticleViewerProps) => (
     <div data-testid="article-viewer">
       <h1>{props.article.title}</h1>
       <p>{props.article.content}</p>
@@ -39,7 +62,7 @@ vi.mock("../../src/components/ArticleViewer", () => ({
 }));
 
 vi.mock("../../src/components/SidePanel", () => ({
-  SidePanel: (props: any) => (
+  SidePanel: (props: MockSidePanelProps) => (
     <div data-testid="side-panel" data-state={props.state}>
       <button
         data-testid="open-settings-from-panel"
@@ -52,7 +75,7 @@ vi.mock("../../src/components/SidePanel", () => ({
 }));
 
 vi.mock("../../src/components/FloatingToolbar", () => ({
-  FloatingToolbar: (props: any) => (
+  FloatingToolbar: (props: MockToolbarProps) => (
     <div data-testid="floating-toolbar">
       <button
         data-testid="provoke-core"
@@ -73,7 +96,7 @@ vi.mock("../../src/lib/anthropic-provider", () => ({
 }));
 
 vi.mock("react-pdf", () => ({
-  Document: ({ children }: any) => <div>{children}</div>,
+  Document: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   Page: () => <div />,
   pdfjs: { GlobalWorkerOptions: { workerSrc: "" } },
 }));
@@ -81,16 +104,6 @@ vi.mock("react-pdf", () => ({
 vi.mock("pdfjs-dist", () => ({
   getDocument: vi.fn(),
 }));
-
-const mockArticle: Article = {
-  id: "article-1",
-  url: "https://example.com/post",
-  title: "Integration Test Article",
-  content: "This is article content for integration testing.",
-  htmlContent: "<p>This is article content for integration testing.</p>",
-  charCount: 48,
-  addedAt: "2026-03-09T00:00:00.000Z",
-};
 
 // Mock article-parser with the mock article
 vi.mock("../../src/lib/article-parser", () => ({

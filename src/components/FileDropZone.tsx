@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from "react";
-import type { Article } from "../types";
+import type { Article, PlainTextDocument } from "../types";
 import { parseArticle as defaultParseArticle } from "../lib/article-parser";
 
-type TabType = "pdf" | "article";
+type TabType = "pdf" | "article" | "text";
 
 interface ContentSelectorProps {
   onFileSelect: (file: File) => void;
   onArticleLoad?: (article: Article) => void;
+  onTextLoad?: (doc: PlainTextDocument) => void;
   onSampleClick: () => void;
   parseArticleFn?: (url: string) => Promise<Article>;
 }
@@ -23,12 +24,15 @@ function isValidUrl(str: string): boolean {
 export function ContentSelector({
   onFileSelect,
   onArticleLoad,
+  onTextLoad,
   onSampleClick,
   parseArticleFn = defaultParseArticle,
 }: ContentSelectorProps) {
   const [activeTab, setActiveTab] = useState<TabType>("pdf");
   const [isDragging, setIsDragging] = useState(false);
   const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +71,19 @@ export function ContentSelector({
     }
   };
 
+  const handleTextSubmit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    onTextLoad?.({
+      id: crypto.randomUUID(),
+      title: title.trim() || "붙여넣은 텍스트",
+      content: trimmed,
+      charCount: trimmed.length,
+      addedAt: new Date().toISOString(),
+    });
+  };
+
   return (
     <div className="p-8">
       {/* Tab bar */}
@@ -90,6 +107,16 @@ export function ContentSelector({
           onClick={() => setActiveTab("article")}
         >
           웹 아티클
+        </button>
+        <button
+          className={`px-4 py-2 font-ui text-sm ${
+            activeTab === "text"
+              ? "bg-[#111] text-[#F9F9F7]"
+              : "text-[#666] hover:text-[#111]"
+          }`}
+          onClick={() => setActiveTab("text")}
+        >
+          직접 텍스트
         </button>
       </div>
 
@@ -129,7 +156,7 @@ export function ContentSelector({
             샘플로 체험하기
           </button>
         </div>
-      ) : (
+      ) : activeTab === "article" ? (
         <div className="border-2 border-dashed border-[#999] p-12">
           <p className="font-headline text-xl mb-4 text-center">
             웹 아티클 URL 입력
@@ -162,6 +189,35 @@ export function ContentSelector({
           {error && (
             <p className="mt-3 text-[#CC0000] font-ui text-sm">{error}</p>
           )}
+        </div>
+      ) : (
+        <div className="border-2 border-dashed border-[#999] p-12">
+          <p className="font-headline text-xl mb-4 text-center">
+            직접 텍스트 붙여넣기
+          </p>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목을 입력하세요 (선택)"
+              className="w-full px-3 py-2 border-2 border-[#111] font-ui text-sm outline-none"
+            />
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="여기에 읽고 싶은 텍스트를 붙여넣으세요"
+              className="w-full min-h-[240px] px-3 py-3 border-2 border-[#111] font-body text-sm outline-none resize-y"
+            />
+            <button
+              type="button"
+              disabled={!text.trim()}
+              onClick={handleTextSubmit}
+              className="btn-newsprint px-4 py-2 font-ui text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              읽기 시작
+            </button>
+          </div>
         </div>
       )}
     </div>

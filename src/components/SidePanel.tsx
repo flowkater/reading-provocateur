@@ -6,11 +6,14 @@ import { ProvocationCard } from "./ProvocationCard";
 import { EvaluationCard } from "./EvaluationCard";
 import { ModelAnswerCard } from "./ModelAnswerCard";
 import { HistoryList } from "./HistoryList";
+import { AnnotationList } from "./AnnotationList";
+import type { Annotation } from "../types";
 
 interface SidePanelProps {
   state: SidePanelState;
   provocation: Provocation | null;
   history: Provocation[];
+  annotations: Annotation[];
   modelAnswer: string | null;
   error: string | null;
   hasApiKey: boolean;
@@ -22,12 +25,15 @@ interface SidePanelProps {
   onSave: () => void;
   onPageJump: (page: number) => void;
   onOpenSettings: () => void;
+  onUpdateAnnotationIntent: (annotationId: string, intent: HighlightIntent | null) => void;
+  onDeleteAnnotation: (annotationId: string) => void;
 }
 
 export function SidePanel({
   state,
   provocation,
   history,
+  annotations,
   modelAnswer,
   error,
   hasApiKey,
@@ -39,6 +45,8 @@ export function SidePanel({
   onSave,
   onPageJump,
   onOpenSettings,
+  onUpdateAnnotationIntent,
+  onDeleteAnnotation,
 }: SidePanelProps) {
   const [showIntentChips, setShowIntentChips] = useState(false);
 
@@ -101,8 +109,24 @@ export function SidePanel({
         )}
 
         {state === "saved" && (
-          <HistoryList history={history} onPageJump={onPageJump} />
+          <div className="space-y-4">
+            <HistoryList history={history} onPageJump={onPageJump} />
+            <AnnotationList
+              annotations={annotations}
+              onUpdateIntent={onUpdateAnnotationIntent}
+              onDelete={onDeleteAnnotation}
+            />
+          </div>
         )}
+
+        {(state === "empty" || state === "question" || state === "evaluation") &&
+          annotations.length > 0 && (
+            <AnnotationList
+              annotations={annotations}
+              onUpdateIntent={onUpdateAnnotationIntent}
+              onDelete={onDeleteAnnotation}
+            />
+          )}
       </div>
 
       {/* Bottom CTA */}

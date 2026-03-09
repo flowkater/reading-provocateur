@@ -10,6 +10,7 @@ describe("NavBar", () => {
     bookTitle: "소프트웨어 장인",
     mode: "understand" as const,
     currentPage: 42,
+    onModeChange: vi.fn(),
     onSettingsClick: vi.fn(),
     onExportClick: vi.fn(),
   };
@@ -29,5 +30,26 @@ describe("NavBar", () => {
     render(<NavBar {...defaultProps} onSettingsClick={onSettingsClick} />);
     await userEvent.click(screen.getByText("Settings"));
     expect(onSettingsClick).toHaveBeenCalledOnce();
+  });
+
+  it("모드 배지 클릭 → 모드 메뉴 열림", async () => {
+    render(<NavBar {...defaultProps} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "이해" }));
+
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemradio", { name: "이해" })
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("다른 모드 선택 → onModeChange 호출", async () => {
+    const onModeChange = vi.fn();
+    render(<NavBar {...defaultProps} onModeChange={onModeChange} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "이해" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "시험" }));
+
+    expect(onModeChange).toHaveBeenCalledWith("exam");
   });
 });

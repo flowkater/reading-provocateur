@@ -50,6 +50,7 @@ describe("store — Annotations", () => {
     const ann: Annotation = {
       id: "a1",
       bookId: "b1",
+      contentType: "pdf",
       pageNumber: 5,
       selectedText: "some text",
       highlightAreas: [],

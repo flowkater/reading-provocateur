@@ -1,5 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ProvocationPayloadSchema, EvaluationPayloadSchema } from "./schemas";
+import {
+  parseProvocationPayload,
+  EvaluationPayloadSchema,
+} from "./schemas";
 import type { ProvocationPayload, EvaluationPayload } from "./schemas";
 import type {
   AiProvider,
@@ -23,7 +26,7 @@ export class AnthropicProvider implements AiProvider {
   async generateProvocation(input: GenerateProvocationInput): Promise<ProvocationPayload> {
     return this.callWithJsonRetry(
       input,
-      (text) => ProvocationPayloadSchema.parse(JSON.parse(text)),
+      (text) => parseProvocationPayload(JSON.parse(text)),
     );
   }
 

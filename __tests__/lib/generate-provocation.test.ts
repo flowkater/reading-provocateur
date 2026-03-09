@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { generateProvocation } from "../../src/lib/generate-provocation";
 import type { AiProvider } from "../../src/lib/ai-provider";
 import type { SessionMode, HighlightIntent } from "../../src/types";
@@ -127,5 +127,18 @@ describe("generateProvocation", () => {
     expect(call.user).toContain("understand");
     expect(call.user).toContain("core");
     expect(call.user).toContain("TDD는 테스트 먼저 작성한다");
+  });
+
+  it("프롬프트에 허용된 kind enum을 명시", async () => {
+    const provider = mockProvider({ kind: "recall", question: "질문" });
+    await generateProvocation(provider, makeInput());
+    const call = (provider.generateProvocation as ReturnType<typeof vi.fn>).mock.calls[0][0];
+
+    expect(call.system).toContain("recall");
+    expect(call.system).toContain("compression");
+    expect(call.system).toContain("misconception");
+    expect(call.system).toContain("challenge");
+    expect(call.system).toContain("transfer");
+    expect(call.system).toContain("정확히 하나");
   });
 });

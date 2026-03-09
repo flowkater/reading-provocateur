@@ -61,6 +61,27 @@ export function getAnnotations(bookId: string): Annotation[] {
   );
 }
 
+export function updateAnnotation(
+  id: string,
+  updates: Partial<Annotation>
+): void {
+  const all = getJson<Annotation[]>(localStorage, KEYS.annotations, []);
+  const idx = all.findIndex((annotation) => annotation.id === id);
+  if (idx !== -1) {
+    all[idx] = { ...all[idx], ...updates };
+    setJson(localStorage, KEYS.annotations, all);
+  }
+}
+
+export function deleteAnnotation(id: string): void {
+  const all = getJson<Annotation[]>(localStorage, KEYS.annotations, []);
+  setJson(
+    localStorage,
+    KEYS.annotations,
+    all.filter((annotation) => annotation.id !== id)
+  );
+}
+
 // --- Provocations ---
 export function saveProvocation(provocation: Provocation): void {
   const all = getJson<Provocation[]>(localStorage, KEYS.provocations, []);

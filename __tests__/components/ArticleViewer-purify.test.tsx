@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { ArticleViewer, PURIFY_CONFIG } from "../../src/components/ArticleViewer";
+import { ArticleViewer } from "../../src/components/ArticleViewer";
 import type { Article } from "../../src/types";
 
 afterEach(cleanup);

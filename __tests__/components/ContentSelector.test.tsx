@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentSelector } from "../../src/components/FileDropZone";
-import type { Article } from "../../src/types";
+import type { Article, PlainTextDocument } from "../../src/types";
 
 afterEach(cleanup);
 
@@ -20,6 +20,7 @@ function renderSelector(overrides = {}) {
   const props = {
     onFileSelect: vi.fn(),
     onArticleLoad: vi.fn(),
+    onTextLoad: vi.fn(),
     onSampleClick: vi.fn(),
     parseArticleFn: vi.fn().mockResolvedValue(mockArticle),
     ...overrides,
@@ -129,5 +130,53 @@ describe("ContentSelector", () => {
       "ftp://files.example.com"
     );
     expect(button).toBeDisabled();
+  });
+
+  it("직접 텍스트 탭 → textarea 렌더 + 읽기 시작으로 onTextLoad 호출", async () => {
+    const { props } = renderSelector();
+
+    await userEvent.click(screen.getByText("직접 텍스트"));
+    const textarea = screen.getByPlaceholderText(
+      "여기에 읽고 싶은 텍스트를 붙여넣으세요"
+    );
+    const button = screen.getByText("읽기 시작");
+
+    expect(button).toBeDisabled();
+
+    await userEvent.type(textarea, "첫 문장\n둘째 문장");
+    expect(button).not.toBeDisabled();
+
+    await userEvent.click(button);
+
+    expect(props.onTextLoad).toHaveBeenCalledWith(
+      expect.objectContaining<Partial<PlainTextDocument>>({
+        title: "붙여넣은 텍스트",
+        content: "첫 문장\n둘째 문장",
+        charCount: 10,
+      })
+    );
+  });
+
+  it("직접 텍스트 탭 → 제목 입력 시 custom title 저장", async () => {
+    const { props } = renderSelector();
+
+    await userEvent.click(screen.getByText("직접 텍스트"));
+    await userEvent.type(
+      screen.getByPlaceholderText("제목을 입력하세요 (선택)"),
+      "내 노트"
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText("여기에 읽고 싶은 텍스트를 붙여넣으세요"),
+      "본문"
+    );
+
+    await userEvent.click(screen.getByText("읽기 시작"));
+
+    expect(props.onTextLoad).toHaveBeenCalledWith(
+      expect.objectContaining<Partial<PlainTextDocument>>({
+        title: "내 노트",
+        content: "본문",
+      })
+    );
   });
 });

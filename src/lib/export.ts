@@ -1,7 +1,8 @@
-import type { Provocation, ReviewItem, SessionContext, Settings } from "../types";
+import type { ContentType, Provocation, ReviewItem, SessionContext, Settings } from "../types";
 
 export interface ExportInput {
   bookTitle: string;
+  sourceType?: ContentType;
   session: SessionContext;
   provocations: Provocation[];
   reviewItems: ReviewItem[];
@@ -26,9 +27,13 @@ function verdictEmoji(verdict: string): string {
 }
 
 export function generateExportMarkdown(input: ExportInput): string {
-  const { bookTitle, session, provocations, reviewItems, settings } = input;
+  const { bookTitle, sourceType = "pdf", session, provocations, reviewItems, settings } = input;
   const date = session.startedAt.split("T")[0];
   const lines: string[] = [];
+  const sourceLabel =
+    sourceType === "pdf" ? "PDF" : sourceType === "article" ? "웹 아티클" : "텍스트";
+  const titleIcon =
+    sourceType === "pdf" ? "📖" : sourceType === "article" ? "🌐" : "📝";
 
   // Obsidian frontmatter
   if (settings.obsidianFrontmatter) {
@@ -36,14 +41,15 @@ export function generateExportMarkdown(input: ExportInput): string {
     lines.push(`title: "Reading Provocateur — ${bookTitle}"`);
     lines.push(`date: ${date}`);
     lines.push(`mode: ${session.mode}`);
+    lines.push(`source: ${sourceLabel}`);
     lines.push("tags: [reading-provocateur, study]");
     lines.push("---");
     lines.push("");
   }
 
   // Title
-  lines.push(`# 📖 ${bookTitle} — Reading Provocateur`);
-  lines.push(`**모드:** ${session.mode} | **날짜:** ${date}`);
+  lines.push(`# ${titleIcon} ${bookTitle} — Reading Provocateur`);
+  lines.push(`**소스:** ${sourceLabel} | **모드:** ${session.mode} | **날짜:** ${date}`);
   lines.push("");
 
   // Layer 1: Provocation cards

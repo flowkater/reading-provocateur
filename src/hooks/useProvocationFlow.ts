@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { AiProvider } from "../lib/ai-provider";
 import type {
@@ -27,22 +27,28 @@ interface FlowContext {
 interface StartInput {
   selectedText: string | null;
   intent: HighlightIntent;
+  annotationId?: string | null;
 }
 
 export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
   const [state, setState] = useState<SidePanelState>("empty");
   const [currentProvocation, setCurrentProvocation] = useState<Provocation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<Provocation[]>([]);
+  const [historyByBookId, setHistoryByBookId] = useState<Record<string, Provocation[]>>(() => ({
+    [context.bookId]: getProvocations(context.bookId),
+  }));
   const prevStateRef = useRef<SidePanelState>("empty");
+  const history = historyByBookId[context.bookId] ?? getProvocations(context.bookId);
 
-  // m2: 초기화 시 store에서 history 복원
-  useEffect(() => {
-    const stored = getProvocations(context.bookId);
-    if (stored.length > 0) {
-      setHistory(stored);
-    }
-  }, [context.bookId]);
+  const appendHistory = useCallback(
+    (provocation: Provocation) => {
+      setHistoryByBookId((prev) => ({
+        ...prev,
+        [context.bookId]: [...(prev[context.bookId] ?? getProvocations(context.bookId)), provocation],
+      }));
+    },
+    [context.bookId]
+  );
 
   const startProvocation = useCallback(
     async (input: StartInput) => {
@@ -72,7 +78,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         const prov: Provocation = {
           id: uuidv4(),
           bookId: context.bookId,
-          annotationId: null,
+          annotationId: input.annotationId ?? null,
           pageNumber: context.pageNumber,
           selectedText: input.selectedText,
           contextExcerpt,
@@ -137,7 +143,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         if (evalResult.verdict === "correct") {
           const reviewItem = buildReviewItem(withEval);
           if (reviewItem) saveReviewItem(reviewItem);
-          setHistory((prev) => [...prev, withEval]);
+          appendHistory(withEval);
           setState("saved");
         } else {
           setState("evaluation");
@@ -147,7 +153,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         setError(classifyError(err).message);
       }
     },
-    [provider, currentProvocation, context, state]
+    [provider, currentProvocation, context, state, appendHistory]
   );
 
   const submitRetry = useCallback(
@@ -180,7 +186,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         if (retryResult.verdict === "correct") {
           const reviewItem = buildReviewItem(updated);
           if (reviewItem) saveReviewItem(reviewItem);
-          setHistory((prev) => [...prev, updated]);
+          appendHistory(updated);
           setState("saved");
         } else {
           // 2nd failure → model answer
@@ -205,16 +211,16 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         setError(classifyError(err).message);
       }
     },
-    [provider, currentProvocation, context, state]
+    [provider, currentProvocation, context, state, appendHistory]
   );
 
   const skipRetry = useCallback(() => {
     if (!currentProvocation) return;
     const reviewItem = buildReviewItem(currentProvocation);
     if (reviewItem) saveReviewItem(reviewItem);
-    setHistory((prev) => [...prev, currentProvocation]);
+    appendHistory(currentProvocation);
     setState("saved");
-  }, [currentProvocation]);
+  }, [appendHistory, currentProvocation]);
 
   const showAnswer = useCallback(async () => {
     if (!currentProvocation) return;
@@ -241,9 +247,9 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
 
   const saveAndNext = useCallback(() => {
     if (!currentProvocation) return;
-    setHistory((prev) => [...prev, currentProvocation]);
+    appendHistory(currentProvocation);
     setState("saved");
-  }, [currentProvocation]);
+  }, [appendHistory, currentProvocation]);
 
   const reset = useCallback(() => {
     setCurrentProvocation(null);

@@ -1,12 +1,17 @@
 import { test, expect } from "@playwright/test";
 
+type AnthropicSystemMessage = string | Array<{ text: string }>;
+type AnthropicRequestBody = {
+  system?: AnthropicSystemMessage;
+};
+
 // Helper: intercept Anthropic API calls
 async function mockAnthropicApi(page: import("@playwright/test").Page) {
   await page.route("https://api.anthropic.com/v1/messages", async (route) => {
-    const postData = route.request().postDataJSON();
+    const postData = route.request().postDataJSON() as AnthropicRequestBody;
     const systemMsg = Array.isArray(postData.system)
-      ? postData.system.map((s: any) => s.text).join(" ")
-      : postData.system || "";
+      ? postData.system.map((s) => s.text).join(" ")
+      : postData.system ?? "";
 
     if (systemMsg.includes("도발") || systemMsg.includes("provoc")) {
       await route.fulfill({
@@ -107,18 +112,27 @@ async function simulateTextSelection(page: import("@playwright/test").Page) {
 
     // Override getSelection to return our fake selection
     const originalGetSelection = window.getSelection;
+    const fakeRange = {
+      getClientRects: () => [{ left: 200, top: 300, right: 400, bottom: 320, width: 200, height: 20 }],
+      getBoundingClientRect: () => ({
+        left: 200,
+        top: 300,
+        right: 400,
+        bottom: 320,
+        width: 200,
+        height: 20,
+      }),
+    } as unknown as Range;
+
     const fakeSelection = {
       isCollapsed: false,
       toString: () => "This is selected text for testing",
-      getRangeAt: () => ({
-        getClientRects: () => [{ left: 200, top: 300, right: 400, bottom: 320, width: 200, height: 20 }],
-        getBoundingClientRect: () => ({ left: 200, top: 300, right: 400, bottom: 320, width: 200, height: 20 }),
-      }),
+      getRangeAt: () => fakeRange,
       rangeCount: 1,
       removeAllRanges: () => {},
       addRange: () => {},
-    };
-    (window as any).getSelection = () => fakeSelection;
+    } as unknown as Selection;
+    window.getSelection = () => fakeSelection;
 
     // Dispatch mouseup on the PDF container's parent (the one with onMouseUp)
     const pdfWrapper = container.closest("[class*='overflow-auto']") || container.parentElement;
@@ -128,7 +142,7 @@ async function simulateTextSelection(page: import("@playwright/test").Page) {
 
     // Restore original
     setTimeout(() => {
-      (window as any).getSelection = originalGetSelection;
+      window.getSelection = originalGetSelection;
     }, 100);
   });
 }

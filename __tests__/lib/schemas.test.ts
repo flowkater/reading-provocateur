@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { ProvocationPayloadSchema, EvaluationPayloadSchema } from "../../src/lib/schemas";
+import {
+  ProvocationPayloadSchema,
+  EvaluationPayloadSchema,
+  parseProvocationPayload,
+} from "../../src/lib/schemas";
 
 describe("ProvocationPayloadSchema", () => {
   it("valid JSON → 파싱 성공", () => {
@@ -17,6 +21,29 @@ describe("ProvocationPayloadSchema", () => {
     expect(() =>
       ProvocationPayloadSchema.parse({ kind: "invalid", question: "질문" })
     ).toThrow();
+  });
+
+  it("일반적인 alias kind 값은 허용 enum으로 정규화", () => {
+    expect(
+      parseProvocationPayload({ kind: "summary", question: "요약해봐" })
+    ).toEqual({
+      kind: "compression",
+      question: "요약해봐",
+    });
+
+    expect(
+      parseProvocationPayload({ kind: "apply", question: "어디에 써먹을래?" })
+    ).toEqual({
+      kind: "transfer",
+      question: "어디에 써먹을래?",
+    });
+
+    expect(
+      parseProvocationPayload({ kind: "오개념", question: "뭐가 틀렸을까?" })
+    ).toEqual({
+      kind: "misconception",
+      question: "뭐가 틀렸을까?",
+    });
   });
 });
 
