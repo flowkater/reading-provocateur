@@ -32,6 +32,9 @@ export function SettingsDialog({ settings, onSave, onClose }: SettingsDialogProp
           <label className="font-ui text-xs uppercase tracking-widest text-[#666] block mb-1">
             API Key
           </label>
+          <p className="font-ui text-xs text-[#CC0000] mb-2">
+            ⚠️ API Key는 브라우저에서 직접 Anthropic 서버로 전송됩니다. 개인용으로만 사용하세요.
+          </p>
           <input
             type="password"
             placeholder="API Key를 입력하세요"

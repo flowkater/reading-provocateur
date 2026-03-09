@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { SessionModeSelector } from "./components/SessionModeSelector";
+import { ReadingView } from "./components/ReadingView";
 import type { SessionMode } from "./types";
 
 type AppView = "onboarding" | "main";
 
 function App() {
   const [view, setView] = useState<AppView>("onboarding");
-  const [_mode, setMode] = useState<SessionMode | null>(null);
+  const [mode, setMode] = useState<SessionMode | null>(null);
 
-  const handleModeSelect = (mode: SessionMode) => {
-    setMode(mode);
+  const handleModeSelect = (m: SessionMode) => {
+    setMode(m);
     setView("main");
   };
 
@@ -38,11 +39,7 @@ function App() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#F9F9F7]">
-      <p className="p-8 font-ui">Main view — PDF viewer coming soon</p>
-    </div>
-  );
+  return <ReadingView mode={mode!} />;
 }
 
 export default App;
