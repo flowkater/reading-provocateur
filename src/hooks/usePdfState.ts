@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Book } from "../types";
 
 export function usePdfState() {
@@ -9,9 +9,18 @@ export function usePdfState() {
   const [pageText, setPageText] = useState("");
   const [selectedText, setSelectedText] = useState<string | null>(null);
   const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null);
+  const fileUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (fileUrlRef.current) URL.revokeObjectURL(fileUrlRef.current);
+    };
+  }, []);
 
   const handleFileSelect = (file: File) => {
+    if (fileUrlRef.current) URL.revokeObjectURL(fileUrlRef.current);
     const url = URL.createObjectURL(file);
+    fileUrlRef.current = url;
     setFileUrl(url);
     setBook({
       id: crypto.randomUUID(),
