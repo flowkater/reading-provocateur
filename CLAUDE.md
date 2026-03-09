@@ -1,193 +1,171 @@
-# CLAUDE.md — Reading Provocateur Fix Plan Phase 2 (2026-03-09)
+# CLAUDE.md — RP Phase 2 코드리뷰 반영 (2026-03-09)
 
 ## 프로젝트
 - 경로: ~/Projects/reading-provocateur
 - 브랜치: master
-- 현재: 194 tests (25 files), tsc 0 errors
-- 스택: Vite 6 + React 19 + TypeScript + Tailwind CSS 4 + react-pdf 10.4.1 + Vitest + Playwright
-- 디자인: Newsprint — Playfair Display/Lora/Inter/JetBrains Mono, #F9F9F7/#111111/#CC0000
-
-## 완료된 작업
-- ✅ Fix 4: 더블클릭 방지
-- ✅ Fix 5: 에러 분류 (SDK instanceof)
-- ✅ Fix 6: localStorage 방어
-- ✅ Fix 2: PDF 렌더링 + pageText 추출 (react-pdf 10.4.1, React 19 호환 확인됨)
+- 현재: 194 tests (25 files) + 8 E2E, tsc 0 errors
+- 이미 반영됨: FlowContext useMemo, showAnswer try/catch, callWithJsonRetry 네트워크 분기
 
 ## TDD 규칙
-- Red → Green → Refactor
-- 각 작업 완료 시 `npm test` + `npx tsc --noEmit` 전체 통과 확인 후 커밋
-- 커밋 컨벤션: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`
+- Red → Green → Refactor, 각 Fix 완료 시 npm test + tsc --noEmit 통과 후 개별 커밋
 
 ---
 
-## 남은 작업 순서
+## 반영할 코드리뷰 피드백 (아키텍처 + 테스트 합산)
 
-### Task 1: App.tsx 통합 — ReadingView 분리 (3~4시간)
+### Fix 1: URL.revokeObjectURL 추가 — 메모리 누수 방지
 
-#### 구조 변경 (God Component 방지)
+**위치**: `src/hooks/usePdfState.ts`
+**문제**: `URL.createObjectURL(file)` 후 revokeObjectURL 호출 없음 → blob URL 메모리 누수
 
-현재 App.tsx는 placeholder. 아래 구조로 분리:
-
-```
-App.tsx (라우팅만, ~30줄)
-  ├── OnboardingView.tsx (기존 온보딩 로직 이동)
-  └── ReadingView.tsx (메인 뷰 — 상태 관리)
-```
-
-#### hooks/usePdfState.ts 생성 — PDF 상태 분리
-
+**수정**:
 ```typescript
-export function usePdfState() {
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [book, setBook] = useState<Book | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [pageText, setPageText] = useState("");
-  const [selectedText, setSelectedText] = useState<string | null>(null);
-  const [selectionPosition, setSelectionPosition] = useState<{x:number,y:number} | null>(null);
-  // handlers: handleFileSelect, handleTextSelect, clearSelection
-  return { ... };
-}
+const handleFileSelect = (file: File) => {
+  if (fileUrl) URL.revokeObjectURL(fileUrl); // 이전 URL 해제
+  const url = URL.createObjectURL(file);
+  setFileUrl(url);
+  // ...
+};
+// cleanup: useEffect return에서도 revokeObjectURL
+useEffect(() => {
+  return () => { if (fileUrl) URL.revokeObjectURL(fileUrl); };
+}, [fileUrl]);
 ```
 
-#### ReadingView.tsx — 70:30 split, 모든 컴포넌트 연결
+**테스트 (1개)**: fileUrl 변경 시 이전 URL revokeObjectURL 호출 확인 (vi.spyOn(URL, 'revokeObjectURL'))
 
-**중요**: 각 컴포넌트의 **실제 props 인터페이스**를 코드에서 확인 후 매핑할 것. 추정하지 말 것.
-
-확인할 컴포넌트 props:
-- `NavBar` — 실제 props 확인 (bookTitle? currentPage? onSettingsClick?)
-- `BottomBar` — 실제 props 확인
-- `FloatingToolbar` — **position: {x,y}** (rects가 아님!) + onProvoke + onHighlight + onClose
-- `SidePanel` — state, provocation, modelAnswer, error, history, hasApiKey, onSubmitAnswer, onRetry, onSkip, onShowAnswer, onSave, onProvoke, onPageJump, onOpenSettings 등
-- `FileDropZone` — onFileSelect, onSampleClick
-- `SettingsDialog` — onClose
-- `ExportPreview` — reviewItems, onClose
-
-#### 반응형 (1024px 이하)
-
-```css
-/* 기본: 70:30 split */
-.pdf-panel { @apply w-[70%]; }
-.side-panel { @apply w-[30%] border-l; }
-
-/* 태블릿 이하: SidePanel overlay */
-@media (max-width: 1024px) {
-  .pdf-panel { @apply w-full; }
-  .side-panel { @apply fixed bottom-0 left-0 w-full h-[60vh]; }
-}
-```
-
-Tailwind `max-lg:` 프리픽스 활용.
-
-#### Settings 보안 경고
-
-SettingsDialog에 추가:
-```
-⚠️ API Key는 브라우저에서 직접 Anthropic 서버로 전송됩니다. 개인용으로만 사용하세요.
-```
-
-#### 테스트 전략
-
-App.tsx / ReadingView 테스트에서 하위 컴포넌트는 **vi.mock으로 stub**:
-```typescript
-vi.mock('../components/PdfViewer', () => ({ PdfViewer: (props: any) => <div data-testid="pdf-viewer" /> }));
-vi.mock('../components/SidePanel', () => ({ SidePanel: (props: any) => <div data-testid="side-panel" /> }));
-```
-
-#### 테스트 (8개)
-1. 온보딩에서 모드 선택 → ReadingView 전환
-2. ReadingView에 NavBar/BottomBar 렌더링
-3. FileDropZone 표시 (파일 없을 때)
-4. 파일 드롭 → PdfViewer 렌더링 (mock)
-5. 텍스트 선택 → FloatingToolbar 표시
-6. Intent 선택 → flow.startProvocation 호출
-7. Settings 버튼 → SettingsDialog 표시
-8. 샘플 PDF 버튼 → fileUrl 설정
-
-#### 커밋
-```
-feat: integrate all components — ReadingView with 70:30 split layout
-```
+**커밋**: `fix: revoke blob URL on file change to prevent memory leak`
 
 ---
 
-### Task 2: 킬 테스트 E2E 확장 (2~3시간)
+### Fix 2: 샘플 PDF 2-step UX 버그 수정
 
-#### AI mock — Playwright route intercept (MSW 사용 안 함)
+**위치**: `src/views/ReadingView.tsx` 또는 App.tsx의 onSampleClick 핸들러
+**문제**: 샘플 PDF 버튼 클릭 시 뷰 전환만 되고 실제 PDF 로드 안 됨
 
+**수정**: onSampleClick 핸들러에서 fetch('/sample.pdf') → blob → createObjectURL → setFileUrl:
 ```typescript
-await page.route('https://api.anthropic.com/v1/messages', async (route) => {
-  const postData = route.request().postDataJSON();
-  const systemMsg = Array.isArray(postData.system)
-    ? postData.system.map((s: any) => s.text).join(' ')
-    : postData.system || '';
-
-  if (systemMsg.includes('provoc') || systemMsg.includes('도발')) {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        content: [{ type: 'text', text: '{"kind":"recall","question":"이 개념의 핵심 원리를 설명해보세요.","targetConcept":"테스트","whyThisMatters":"이해도 확인"}' }]
-      })
-    });
-  } else if (systemMsg.includes('evaluat') || systemMsg.includes('평가')) {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        content: [{ type: 'text', text: '{"verdict":"partial","confidence":"medium","explanation":"부분적으로 맞습니다.","hint":"핵심을 다시 생각해보세요"}' }]
-      })
-    });
-  } else {
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        content: [{ type: 'text', text: '모범 답안: 핵심 원리는...' }]
-      })
-    });
+const handleSampleClick = async () => {
+  try {
+    const res = await fetch('/sample.pdf');
+    const blob = await res.blob();
+    const file = new File([blob], 'sample.pdf', { type: 'application/pdf' });
+    pdf.handleFileSelect(file);
+  } catch (err) {
+    console.warn('[sample] Failed to load sample PDF:', err);
   }
-});
+};
 ```
 
-#### PDF 텍스트 선택
+**테스트 (1개)**: 샘플 버튼 클릭 → fetch('/sample.pdf') 호출 + fileUrl 설정 확인
 
-TextLayer 렌더링 후 실제 마우스 selection. 어려우면 CustomEvent dispatch 대안 사용.
-
-#### 테스트 (4개)
-1. 전체 플로우: 온보딩 → PDF 로드 → 텍스트 선택 → 도발 → 평가 → Export
-2. API 에러 시 에러 UI 표시
-3. Settings에서 API Key 입력 → 반영
-4. 90초 이내 전체 플로우 완료
-
-#### 커밋
-```
-test: full flow E2E with Playwright route intercept
-```
+**커밋**: `fix: sample PDF button now actually loads the PDF`
 
 ---
 
-### Task 3: 코드 리뷰 반영 (크리틱 피드백)
+### Fix 3: FileDropZone onSampleClick 빈 파일 fallback 제거
 
-아래 항목들을 코드에서 확인하고 해당되면 수정:
+**위치**: `src/components/FileDropZone.tsx` 또는 호출부
+**문제**: catch에서 빈 File 생성하는 의미 없는 fallback이 있으면 제거
 
-1. **useProvocationFlow FlowContext 재생성 방지**: context 객체를 `useMemo`로 감싸기
-2. **showAnswer() try/catch 확인**: 없으면 추가
-3. **FileDropZone onSampleClick**: sample.pdf fetch + 처리 로직 확인
-4. **callWithJsonRetry**: 네트워크 에러 시 불필요한 재시도 방지 — JSON 파싱 에러만 재시도하도록 분기 (optional)
+**수정**: catch에서 에러만 로그하고 빈 파일 생성하지 않음. 사용자에게 에러 표시.
 
-각 수정마다 개별 커밋.
+**커밋**: `fix: remove meaningless empty file fallback in sample PDF handler`
+
+---
+
+### Fix 4: 이중 재시도 로직 DRY 정리
+
+**위치**: `src/lib/anthropic-provider.ts` + `src/lib/generate-provocation.ts` (또는 evaluate-answer.ts)
+**문제**: callWithJsonRetry가 provider에도 있고 lib에도 있음 → 동일 로직 중복
+
+**수정**: 재시도 로직을 한 곳에만 유지. provider에서 callWithJsonRetry 사용 시 lib 함수는 단순 호출만. 또는 lib에서 provider.generate를 직접 호출하고 재시도는 provider 내부에서만.
+
+**확인 필요**: 실제 코드에서 중복 위치를 정확히 파악 후 판단. 중복이 아니면 skip.
+
+**커밋**: `refactor: consolidate retry logic — single source of truth`
+
+---
+
+### Fix 5: E2E 샘플 PDF 테스트 — vacuous test 수정
+
+**위치**: `e2e/kill-test.spec.ts`
+**문제**: isVisible catch → 항상 pass. 의미 없는 테스트.
+
+**수정**: catch 내에서 `test.skip('sample PDF not available')` 또는 제대로 된 assertion으로 교체.
+
+**커밋**: `fix: remove vacuous isVisible catch in E2E sample test`
+
+---
+
+### Fix 6: E2E API 에러 테스트 — 실제 호출 추가
+
+**위치**: `e2e/kill-test.spec.ts`
+**문제**: route mock만 세팅하고 실제 API 호출을 트리거하는 사용자 액션이 없음
+
+**수정**: mock 설정 후 텍스트 선택 → intent 클릭 → 도발 생성 시도 → 에러 UI 확인까지 추가.
+실제 PDF 텍스트 선택이 어려우면 CustomEvent dispatch 사용.
+
+**커밋**: `fix: E2E API error test now triggers actual API call`
+
+---
+
+### Fix 7: E2E 킬 테스트 — 실제 도발 플로우 검증 강화
+
+**위치**: `e2e/kill-test.spec.ts`
+**문제**: 90초 킬 테스트가 이름과 달리 실제 AI 플로우 절반도 미검증
+
+**수정**: 전체 플로우를 순서대로 검증:
+1. PDF 로드 확인
+2. 텍스트 선택 (또는 CustomEvent)
+3. Intent 선택 → SidePanel loading
+4. 도발 질문 표시 확인
+5. 답변 입력 + 제출
+6. 평가 결과 표시 확인
+7. (선택) 재시도 or 모범 답안
+8. Export 가능 확인
+
+각 단계에서 의미 있는 assertion 추가.
+
+**커밋**: `test: strengthen kill test with full provocation flow assertions`
+
+---
+
+### Fix 8: `history.length >= 0` 등 무의미한 assertion 정리
+
+**위치**: 테스트 파일 전체 스캔
+**문제**: `>= 0`은 항상 true → 무의미한 assertion
+
+**수정**: 구체적 값으로 교체 (예: `history.length === 0` 또는 `history.length > 0`)
+
+**커밋**: `fix: replace vacuous assertions with meaningful checks`
+
+---
+
+### Fix 9: 세션 영속성 테스트 추가
+
+**위치**: 신규 E2E 테스트
+**문제**: reload 후 세션 복원 미검증
+
+**수정**: E2E 테스트 추가:
+1. 도발 진행 중 page.reload()
+2. reload 후 이전 상태 복원 확인 (localStorage 기반)
+
+**커밋**: `test: add session persistence E2E — reload restores state`
 
 ---
 
 ## 완료 기준
 
 ```bash
-npm test              # 전체 통과 (~206+ tests)
+npm test              # 전체 통과 (194+)
 npx tsc --noEmit      # 0 errors
 npm run build         # 성공
-npx playwright test   # E2E 통과
+npx playwright test   # E2E 전체 통과
 ```
 
 ## 완료 후
 
 ```bash
-openclaw system event --text "Done: RP Fix Plan Phase 2 — App integration + E2E + review fixes. Tests: $(npm test 2>&1 | grep 'Tests' | head -1)" --mode now
+openclaw system event --text "Done: RP review fixes — all items addressed" --mode now
 ```
