@@ -346,4 +346,39 @@ test.describe("Kill Test — E2E Full Flow", () => {
       page.getByText(/이해|understand/i).first()
     ).toBeVisible({ timeout: 10_000 });
   });
+
+  test("세션 영속성 — reload 후 API Key 복원", async ({ page }) => {
+    // 1. Set API key with rememberKey
+    await page.goto("/");
+    await page.getByText(/이해/i).first().click();
+
+    await page.getByText("Settings").first().click();
+    await expect(page.getByText(/api key/i).first()).toBeVisible({ timeout: 5_000 });
+
+    const apiInput = page.locator('input[type="password"]');
+    await apiInput.fill("sk-ant-persist-key");
+
+    // Check "기억하기" checkbox if it exists
+    const rememberCheckbox = page.locator('input[type="checkbox"]');
+    const checkboxCount = await rememberCheckbox.count();
+    if (checkboxCount > 0) {
+      await rememberCheckbox.first().check();
+    }
+
+    await page.getByText("Done").click();
+    await expect(page.locator('input[type="password"]')).not.toBeVisible({ timeout: 3_000 });
+
+    // 2. Reload the page
+    await page.reload();
+
+    // 3. After reload, app goes to onboarding — select mode again
+    await page.getByText(/이해/i).first().click();
+
+    // 4. Open settings — API key should be preserved
+    await page.getByText("Settings").first().click();
+    await expect(page.getByText(/api key/i).first()).toBeVisible({ timeout: 5_000 });
+
+    const savedKey = await page.locator('input[type="password"]').inputValue();
+    expect(savedKey).toBe("sk-ant-persist-key");
+  });
 });
