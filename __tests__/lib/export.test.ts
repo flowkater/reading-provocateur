@@ -238,4 +238,19 @@ describe("generateExportMarkdown", () => {
     });
     expect(md.startsWith("---\n")).toBe(false);
   });
+
+  it("빈 배열 → 유효한 마크다운 생성", () => {
+    const md = generateExportMarkdown({
+      bookTitle: "빈 책",
+      session: baseSession,
+      provocations: [],
+      reviewItems: [],
+      settings: baseSettings,
+    });
+    expect(md).toContain("# 📖 빈 책");
+    expect(md).toContain("## 도발 기록");
+    expect(md).toContain("도발 수: 0");
+    // Should not contain weak concept sections
+    expect(md).not.toContain("## 약점 목록");
+  });
 });
