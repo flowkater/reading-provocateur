@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SidePanel } from "../../src/components/SidePanel";
-import type { Provocation, SidePanelState } from "../../src/types";
+import type { Annotation, Provocation, SidePanelState } from "../../src/types";
 
 afterEach(cleanup);
 
@@ -44,6 +44,7 @@ const defaultProps = {
   state: "empty" as SidePanelState,
   provocation: null as Provocation | null,
   history: [] as Provocation[],
+  annotations: [] as Annotation[],
   modelAnswer: null as string | null,
   error: null as string | null,
   hasApiKey: true,
@@ -55,6 +56,21 @@ const defaultProps = {
   onSave: vi.fn(),
   onPageJump: vi.fn(),
   onOpenSettings: vi.fn(),
+  onUpdateAnnotationIntent: vi.fn(),
+  onDeleteAnnotation: vi.fn(),
+};
+
+const annotation: Annotation = {
+  id: "a1",
+  bookId: "b1",
+  pageNumber: 3,
+  contentType: "text",
+  selectedText: "하이라이트된 문장",
+  quote: "하이라이트된 문장",
+  contextBefore: "",
+  contextAfter: "",
+  intent: null,
+  createdAt: "2026-03-09T00:00:00.000Z",
 };
 
 describe("SidePanel", () => {
@@ -148,5 +164,39 @@ describe("SidePanel", () => {
     const provokeBtn = buttons.find((b) => b.textContent?.includes("도발해줘"))!;
     provokeBtn.click();
     expect(onOpenSettings).toHaveBeenCalled();
+  });
+
+  it("annotation 목록에서 intent 수정 가능", async () => {
+    const onUpdateAnnotationIntent = vi.fn();
+    render(
+      <SidePanel
+        {...defaultProps}
+        state="saved"
+        annotations={[annotation]}
+        onUpdateAnnotationIntent={onUpdateAnnotationIntent}
+      />
+    );
+
+    await userEvent.selectOptions(
+      screen.getByLabelText("annotation-intent-a1"),
+      "core"
+    );
+
+    expect(onUpdateAnnotationIntent).toHaveBeenCalledWith("a1", "core");
+  });
+
+  it("annotation 목록에서 삭제 가능", async () => {
+    const onDeleteAnnotation = vi.fn();
+    render(
+      <SidePanel
+        {...defaultProps}
+        state="saved"
+        annotations={[annotation]}
+        onDeleteAnnotation={onDeleteAnnotation}
+      />
+    );
+
+    await userEvent.click(screen.getByText("삭제"));
+    expect(onDeleteAnnotation).toHaveBeenCalledWith("a1");
   });
 });

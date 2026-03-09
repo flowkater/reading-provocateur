@@ -102,7 +102,8 @@ describe("HomeScreen", () => {
     expect(screen.getAllByText("DDD.pdf")).toHaveLength(2);
     expect(screen.getByText("좋은 글")).toBeInTheDocument();
     expect(screen.getAllByText("붙여넣은 텍스트")).toHaveLength(2);
-    expect(screen.getByText(/첫 문장/)).toBeInTheDocument();
+    expect(screen.getByText("텍스트")).toBeInTheDocument();
+    expect(screen.getByText("10자")).toBeInTheDocument();
   });
 
   it("최근 세션 클릭 → onOpenSession 호출", async () => {

@@ -253,4 +253,18 @@ describe("generateExportMarkdown", () => {
     // Should not contain weak concept sections
     expect(md).not.toContain("## 약점 목록");
   });
+
+  it("plain text source → 텍스트 전용 export wording", () => {
+    const md = generateExportMarkdown({
+      bookTitle: "붙여넣은 텍스트",
+      sourceType: "text",
+      session: baseSession,
+      provocations: [],
+      reviewItems: [],
+      settings: baseSettings,
+    });
+
+    expect(md).toContain("# 📝 붙여넣은 텍스트");
+    expect(md).toContain("**소스:** 텍스트");
+  });
 });
