@@ -53,9 +53,8 @@ export function ReadingView({ mode }: ReadingViewProps) {
       const blob = await res.blob();
       const file = new File([blob], "sample.pdf", { type: "application/pdf" });
       pdf.handleFileSelect(file);
-    } catch {
-      // fallback: just set a URL
-      pdf.handleFileSelect(new File([], "sample.pdf", { type: "application/pdf" }));
+    } catch (err) {
+      console.warn("[sample] Failed to load sample PDF:", err);
     }
   };
 
