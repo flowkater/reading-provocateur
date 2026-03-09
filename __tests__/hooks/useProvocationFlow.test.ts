@@ -371,7 +371,8 @@ describe("useProvocationFlow", () => {
     await act(async () => {
       await result.current.startProvocation({ selectedText: "t", intent: "core" });
     });
-    expect(result.current.history.length).toBeGreaterThanOrEqual(0);
+    expect(result.current.currentProvocation).not.toBeNull();
+    expect(provider.generateProvocation).toHaveBeenCalled();
   });
 
   it("약점 연결: recentWeakConcepts에 현재 책 약점 전달", async () => {

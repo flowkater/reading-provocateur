@@ -85,9 +85,9 @@ describe("useSession", () => {
     act(() => {
       result.current.openBook("test.pdf", 100);
     });
-    // Duration should be 0 or small since just started
+    // Duration should be 0 (or very small) since just started
     const duration = result.current.getDuration();
     expect(typeof duration).toBe("number");
-    expect(duration).toBeGreaterThanOrEqual(0);
+    expect(duration).toBeLessThan(1);
   });
 });
