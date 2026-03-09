@@ -15,11 +15,13 @@ export function mockSelection(
     y: 200,
     toJSON: () => ({}),
   };
+  const mergedRect = { ...defaultRect, ...rect };
   vi.spyOn(window, "getSelection").mockReturnValue({
     isCollapsed: false,
     toString: () => text,
     getRangeAt: () => ({
-      getBoundingClientRect: () => ({ ...defaultRect, ...rect }),
+      getBoundingClientRect: () => mergedRect,
+      getClientRects: () => [mergedRect],
     }),
   } as unknown as Selection);
 }

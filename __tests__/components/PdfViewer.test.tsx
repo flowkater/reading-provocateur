@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { mockSelection } from "../../src/__test__/selection-mock";
 
 // Mock react-pdf before importing PdfViewer
 vi.mock("react-pdf", () => {
@@ -88,15 +89,7 @@ describe("PdfViewer", () => {
 
     // Simulate text selection via mouseup
     const container = screen.getByTestId("pdf-document").parentElement!;
-    const mockRange = {
-      getClientRects: () => [{ left: 100, bottom: 200, top: 180, right: 300, width: 200, height: 20, x: 100, y: 180, toJSON: () => ({}) }],
-    };
-    const mockSelection = {
-      isCollapsed: false,
-      toString: () => "selected text",
-      getRangeAt: () => mockRange,
-    };
-    vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as any);
+    mockSelection("selected text", { left: 100, bottom: 200, top: 180 });
 
     fireEvent.mouseUp(container);
     expect(onTextSelect).toHaveBeenCalledWith(
@@ -174,7 +167,7 @@ describe("PdfViewer", () => {
     vi.spyOn(window, "getSelection").mockReturnValue({
       isCollapsed: true,
       toString: () => "",
-    } as any);
+    } as unknown as Selection);
 
     fireEvent.mouseUp(container);
     expect(onTextSelect).not.toHaveBeenCalled();
