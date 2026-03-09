@@ -12,6 +12,7 @@ import { generateProvocation as genProv } from "../lib/generate-provocation";
 import { evaluateAnswer as evalAnswer } from "../lib/evaluate-answer";
 import { generateModelAnswer as genModelAnswer } from "../lib/generate-model-answer";
 import { extractContext } from "../lib/extract-context";
+import { classifyError } from "../lib/error-classifier";
 import { buildReviewItem } from "../lib/build-review-items";
 import { saveProvocation, updateProvocation, saveReviewItem, getReviewItems, getProvocations } from "../lib/store";
 
@@ -91,7 +92,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         setState("question");
       } catch (err) {
         setState(prevStateRef.current);
-        setError(err instanceof Error ? err.message : "도발 생성에 실패했습니다.");
+        setError(classifyError(err).message);
       }
     },
     [provider, context, state, history]
@@ -142,7 +143,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         }
       } catch (err) {
         setState(prevStateRef.current);
-        setError(err instanceof Error ? err.message : "평가에 실패했습니다.");
+        setError(classifyError(err).message);
       }
     },
     [provider, currentProvocation, context, state]
@@ -200,7 +201,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
         }
       } catch (err) {
         setState(prevStateRef.current);
-        setError(err instanceof Error ? err.message : "재평가에 실패했습니다.");
+        setError(classifyError(err).message);
       }
     },
     [provider, currentProvocation, context, state]
