@@ -43,7 +43,7 @@ export function ExportPreview({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-[#F9F9F7] border-2 border-[#111] w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="Export 미리보기" className="bg-[#F9F9F7] border-2 border-[#111] w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b-2 border-[#111]">
           <h2 className="font-headline text-xl font-bold">Export Preview</h2>
           <button onClick={onClose} className="font-ui text-sm text-[#666] hover:text-[#111]">

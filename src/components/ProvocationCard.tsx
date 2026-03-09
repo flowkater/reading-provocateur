@@ -54,6 +54,7 @@ export function ProvocationCard({ provocation, onSubmit, isSubmitting = false }:
 
       {/* Answer textarea */}
       <textarea
+        aria-label="답변 입력"
         className="input-newsprint w-full p-2 mb-3 min-h-[80px] resize-y text-sm border-2 border-[#111]"
         placeholder="답변을 입력하세요..."
         value={answer}

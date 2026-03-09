@@ -33,13 +33,24 @@ export function FloatingToolbar({
         onClose();
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [onClose]);
 
   return (
     <div
       ref={toolbarRef}
+      role="toolbar"
+      aria-label="텍스트 도구"
       className="bg-[#111] text-[#F9F9F7] uppercase tracking-wider fixed z-50 shadow-hard"
       style={{ left: position.x, top: position.y }}
     >

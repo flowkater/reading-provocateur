@@ -58,7 +58,7 @@ export function SidePanel({
   const showProvokeButton = state === "empty" || state === "saved";
 
   return (
-    <div className="h-full flex flex-col border-l-2 border-[#111] bg-[#F9F9F7]">
+    <div role="complementary" aria-label="도발 패널" className="h-full flex flex-col border-l-2 border-[#111] bg-[#F9F9F7]">
       {/* Error */}
       {error && (
         <div className="p-3 bg-red-50 border-b-2 border-[#CC0000] text-sm font-ui text-[#CC0000]">

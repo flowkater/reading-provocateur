@@ -24,7 +24,7 @@ export function SettingsDialog({ settings, onSave, onClose }: SettingsDialogProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-[#F9F9F7] border-2 border-[#111] w-full max-w-md p-6">
+      <div role="dialog" aria-modal="true" aria-label="설정" className="bg-[#F9F9F7] border-2 border-[#111] w-full max-w-md p-6">
         <h2 className="font-headline text-2xl font-bold mb-6">Settings</h2>
 
         {/* API Key */}
