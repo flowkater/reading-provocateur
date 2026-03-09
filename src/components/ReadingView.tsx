@@ -1,16 +1,17 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import type { SessionMode, HighlightIntent } from "../types";
-import { usePdfState } from "../hooks/usePdfState";
+import { useContentState } from "../hooks/useContentState";
 import { useSettings } from "../hooks/useSettings";
 import { useProvocationFlow } from "../hooks/useProvocationFlow";
 import { AnthropicProvider } from "../lib/anthropic-provider";
 import { LoadingCard } from "./LoadingCard";
-import { FileDropZone } from "./FileDropZone";
+import { ContentSelector } from "./FileDropZone";
 import { FloatingToolbar } from "./FloatingToolbar";
 import { NavBar } from "./NavBar";
 import { BottomBar } from "./BottomBar";
 import { SidePanel } from "./SidePanel";
 import { SettingsDialog } from "./SettingsDialog";
+import { ArticleViewer } from "./ArticleViewer";
 
 const PdfViewer = lazy(() =>
   import("./PdfViewer").then((m) => ({ default: m.PdfViewer }))
@@ -21,7 +22,7 @@ interface ReadingViewProps {
 }
 
 export function ReadingView({ mode }: ReadingViewProps) {
-  const pdf = usePdfState();
+  const content = useContentState();
   const { settings, updateSettings, hasApiKey } = useSettings();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -30,25 +31,37 @@ export function ReadingView({ mode }: ReadingViewProps) {
     [settings.apiKey, settings.model]
   );
 
+  const contentTitle = content.contentSource?.type === "pdf"
+    ? content.contentSource.book.fileName
+    : content.contentSource?.type === "article"
+    ? content.contentSource.article.title
+    : "";
+
+  const contentId = content.contentSource?.type === "pdf"
+    ? content.contentSource.book.id
+    : content.contentSource?.type === "article"
+    ? content.contentSource.article.id
+    : "";
+
   const flowContext = useMemo(
     () => ({
-      bookId: pdf.book?.id ?? "",
-      bookTitle: pdf.book?.fileName ?? "",
+      bookId: contentId,
+      bookTitle: contentTitle,
       sessionMode: mode,
-      pageNumber: pdf.currentPage,
-      pageText: pdf.pageText,
+      pageNumber: content.pdfState.currentPage,
+      pageText: content.pageText,
     }),
-    [pdf.book?.id, pdf.book?.fileName, mode, pdf.currentPage, pdf.pageText]
+    [contentId, contentTitle, mode, content.pdfState.currentPage, content.pageText]
   );
 
   const flow = useProvocationFlow(provider, flowContext);
 
   const handleProvoke = (intent: HighlightIntent) => {
     flow.startProvocation({
-      selectedText: pdf.selectedText,
+      selectedText: content.selectedText,
       intent,
     });
-    pdf.clearSelection();
+    content.clearSelection();
   };
 
   const handleSampleClick = async () => {
@@ -56,48 +69,56 @@ export function ReadingView({ mode }: ReadingViewProps) {
       const res = await fetch("/sample.pdf");
       const blob = await res.blob();
       const file = new File([blob], "sample.pdf", { type: "application/pdf" });
-      pdf.handleFileSelect(file);
+      content.handleFileSelect(file);
     } catch (err) {
       console.warn("[sample] Failed to load sample PDF:", err);
     }
   };
 
+  const isArticle = content.contentSource?.type === "article";
+
   return (
     <div className="min-h-screen bg-[#F9F9F7] flex flex-col">
       <NavBar
-        bookTitle={pdf.book?.fileName ?? ""}
+        bookTitle={contentTitle}
         mode={mode}
-        currentPage={pdf.currentPage}
+        currentPage={isArticle ? 0 : content.pdfState.currentPage}
         onSettingsClick={() => setShowSettings(true)}
         onExportClick={() => {}}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 70% PDF */}
+        {/* 70% Content */}
         <div className="w-[70%] max-lg:w-full relative">
-          {pdf.fileUrl ? (
+          {content.contentSource?.type === "pdf" ? (
             <Suspense fallback={<LoadingCard message="PDF 로딩 중..." />}>
               <PdfViewer
-                fileUrl={pdf.fileUrl}
-                currentPage={pdf.currentPage}
-                onPageChange={pdf.setCurrentPage}
-                onTotalPagesChange={pdf.setTotalPages}
-                onTextSelect={pdf.handleTextSelect}
-                onPageTextExtract={pdf.setPageText}
+                fileUrl={content.contentSource.fileUrl}
+                currentPage={content.pdfState.currentPage}
+                onPageChange={content.pdfState.setCurrentPage}
+                onTotalPagesChange={content.pdfState.setTotalPages}
+                onTextSelect={content.handleTextSelect}
+                onPageTextExtract={content.setPageText}
               />
             </Suspense>
+          ) : content.contentSource?.type === "article" ? (
+            <ArticleViewer
+              article={content.contentSource.article}
+              onTextSelect={content.handleTextSelect}
+            />
           ) : (
-            <FileDropZone
-              onFileSelect={pdf.handleFileSelect}
+            <ContentSelector
+              onFileSelect={content.handleFileSelect}
+              onArticleLoad={content.handleArticleLoad}
               onSampleClick={handleSampleClick}
             />
           )}
-          {pdf.selectedText && pdf.selectionPosition && (
+          {content.selectedText && content.selectionPosition && (
             <FloatingToolbar
-              position={pdf.selectionPosition}
+              position={content.selectionPosition}
               onProvoke={handleProvoke}
-              onHighlight={() => pdf.clearSelection()}
-              onClose={pdf.clearSelection}
+              onHighlight={() => content.clearSelection()}
+              onClose={content.clearSelection}
             />
           )}
         </div>
@@ -117,13 +138,18 @@ export function ReadingView({ mode }: ReadingViewProps) {
             onShowAnswer={flow.showAnswer}
             onSave={flow.saveAndNext}
             onProvoke={handleProvoke}
-            onPageJump={pdf.setCurrentPage}
+            onPageJump={content.pdfState.setCurrentPage}
             onOpenSettings={() => setShowSettings(true)}
           />
         </div>
       </div>
 
-      <BottomBar currentPage={pdf.currentPage} totalPages={pdf.totalPages} />
+      {!isArticle && (
+        <BottomBar
+          currentPage={content.pdfState.currentPage}
+          totalPages={content.pdfState.totalPages}
+        />
+      )}
 
       {showSettings && (
         <SettingsDialog

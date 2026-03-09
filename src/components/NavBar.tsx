@@ -31,7 +31,9 @@ export function NavBar({
         <span className="font-ui text-xs uppercase tracking-widest bg-[#111] text-[#F9F9F7] px-2 py-0.5">
           {MODE_LABELS[mode]}
         </span>
-        <span className="font-data text-xs text-[#666]">p.{currentPage}</span>
+        {currentPage > 0 && (
+          <span className="font-data text-xs text-[#666]">p.{currentPage}</span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button

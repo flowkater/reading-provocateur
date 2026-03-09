@@ -25,6 +25,20 @@ vi.mock("../../src/components/PdfViewer", () => ({
   default: MockPdfViewer,
 }));
 
+vi.mock("../../src/components/ArticleViewer", () => ({
+  ArticleViewer: (props: any) => (
+    <div data-testid="article-viewer">
+      <h1>{props.article.title}</h1>
+      <button
+        data-testid="simulate-article-text-select"
+        onClick={() => props.onTextSelect("article selected text", { x: 150, y: 250 })}
+      >
+        Select Article Text
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock("../../src/components/SidePanel", () => ({
   SidePanel: (props: any) => (
     <div data-testid="side-panel" data-state={props.state}>
@@ -72,6 +86,11 @@ vi.mock("pdfjs-dist", () => ({
   getDocument: vi.fn(),
 }));
 
+// Mock article-parser to avoid actual fetch in ContentSelector
+vi.mock("../../src/lib/article-parser", () => ({
+  parseArticle: vi.fn(),
+}));
+
 import { ReadingView } from "../../src/components/ReadingView";
 
 // Polyfill URL.createObjectURL for jsdom
@@ -87,13 +106,12 @@ describe("ReadingView", () => {
     render(<ReadingView mode="understand" />);
     // NavBar has the mode badge
     expect(screen.getByText("이해")).toBeInTheDocument();
-    // BottomBar has page counter
-    expect(screen.getByText(/p\.1\/0/)).toBeInTheDocument();
   });
 
-  it("파일 없을 때 FileDropZone 표시", () => {
+  it("파일 없을 때 ContentSelector 표시", () => {
     render(<ReadingView mode="understand" />);
-    expect(screen.getByText("PDF를 여기에 드롭")).toBeInTheDocument();
+    expect(screen.getByText("PDF 파일")).toBeInTheDocument();
+    expect(screen.getByText("웹 아티클")).toBeInTheDocument();
   });
 
   it("파일 드롭 → PdfViewer 렌더링", async () => {
