@@ -1,223 +1,381 @@
-# CLAUDE.md — Reading Provocateur
+# CLAUDE.md — Reading Provocateur Fix Plan (2026-03-09)
 
-## 프로젝트 개요
-AI가 읽기 중 도발적 질문을 던져 학습을 강제하는 재시도 엔진. 웹 SPA.
+## 프로젝트
+- 경로: ~/Projects/reading-provocateur
+- 브랜치: master
+- 현재: 167 unit + 5 E2E, tsc 0 errors, build 195KB
+- 스택: Vite 6 + React 19 + TypeScript + Tailwind CSS 4 + Vitest + Playwright
+- 디자인: Newsprint — Playfair Display / Lora / Inter / JetBrains Mono, #F9F9F7 / #111111 / #CC0000
 
-## 기술 스택
-- Vite 6 + React 19 + TypeScript 5.7
-- `@react-pdf-viewer/core` + `highlight` (4.x) — React 19 비호환 시 `react-pdf` 대안
-- `@tailwindcss/vite` (v4, Vite 플러그인 방식 — postcss/autoprefixer 불필요)
-- shadcn/ui + Tailwind CSS 4
-- `@anthropic-ai/sdk` (dangerouslyAllowBrowser)
-- zod (AI JSON 응답 검증)
-- Vitest + @testing-library/react + jsdom
-- localStorage / sessionStorage
-- lucide-react (아이콘)
+## 핵심 문제
+로직은 전부 완성(167 tests)되어 있으나 **조립이 안 됨**:
+- App.tsx main 뷰 = placeholder ("PDF viewer coming soon")
+- PdfViewer.tsx = placeholder (실제 PDF 렌더링 없음)
+- NavBar/BottomBar/FloatingToolbar/SettingsDialog/ExportPreview 전부 미연결
 
-## 디자인 시스템: Newsprint
-- 폰트: Playfair Display (헤드라인) / Lora (본문) / Inter (UI) / JetBrains Mono (데이터)
-- 색상: `#F9F9F7` 배경, `#111111` 텍스트/보더, `#CC0000` 극소 강조
-- border-radius: 0px 전체
-- hover: hard offset shadow (`4px 4px 0px 0px #111`)
-- 하이라이트: `rgba(254, 243, 199, 0.6)` (warm yellow)
-- 버튼: uppercase tracking-widest, 반전 hover
-- 입력: border-b-2 border-[#111] bg-transparent font-mono
-
-## 개발 방법론
-- **TDD (Red→Green→Refactor)**: 항상 실패하는 테스트 먼저 작성
-- Feature 단위 커밋 (feat: ..., fix: ..., chore: ...)
-- 각 Feature 완료 시 `npm test` 통과 확인 후 git commit
-- `tsc --noEmit` 에러 0 유지
-
-## 테스트 설정
-```bash
-npm test          # Vitest 실행
-npx tsc --noEmit  # 타입 체크
-npm run build     # Vite 빌드
-```
-
-Vitest 설정:
-```ts
-// vitest.config.ts — environment: jsdom, include: ["__tests__/**/*.test.{ts,tsx}"]
-// vitest.setup.ts — import "@testing-library/jest-dom"
-```
-
-테스트 위치: `__tests__/lib/`, `__tests__/hooks/`, `__tests__/components/`
-
-## 상세 구현 계획서
-전체 구현 계획은 `docs/implementation-plan.md` 참조.
+## TDD 규칙
+- Red → Green → Refactor
+- 각 Fix 완료 시 `npm test` + `npx tsc --noEmit` 전체 통과 확인 후 커밋
+- 커밋 컨벤션: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`
 
 ---
 
-## Feature 구현 순서 (순차, TDD)
+## 실행 순서 (순차 — Batch A 병렬은 오케스트레이터가 처리)
 
-### Feature 1: 데이터 모델 + 스토어 + 스키마
-파일: `src/types/index.ts`, `src/lib/schemas.ts`, `src/lib/store.ts`
-테스트: `__tests__/lib/schemas.test.ts` (7), `__tests__/lib/store.test.ts` (10)
+### Fix 4: 답변 더블클릭 방지 (5분)
 
-타입 정의 (14 interface/type):
-- SessionMode: "understand" | "apply" | "exam" | "critique"
-- HighlightIntent: "core" | "confused" | "connection" | "apply"
-- ProvocationKind: "recall" | "compression" | "misconception" | "challenge" | "transfer"
-- EvaluationVerdict: "correct" | "partial" | "incorrect" | "memorized"
-- ConfidenceLevel: "low" | "medium" | "high"
-- SidePanelState: "empty" | "loading" | "question" | "evaluating" | "evaluation" | "modelAnswer" | "saved"
-- Book: { id, fileName, totalPages, currentPage, addedAt }
-- SessionContext: { bookId, mode, startedAt, endedAt, firstPage, lastPage }
-- Annotation: { id, bookId, pageNumber, selectedText, highlightAreas, intent, createdAt }
-- Provocation: { id, bookId, annotationId, pageNumber, selectedText, contextExcerpt, sessionMode, intent, kind, question, answer, confidence, createdAt, answeredAt, evaluation, modelAnswer }
-- Evaluation: { verdict, whatWasRight, missingPoints, followUpQuestion, retryAnswer, retryVerdict, retryEvaluatedAt }
-- ReviewItem: { id, bookId, conceptLabel, sourceProvocationId, status, reviewPrompt, createdAt }
-- Settings: { provider, apiKey, rememberKey, model, defaultMode, obsidianFrontmatter }
+`src/components/ProvocationCard.tsx`의 제출 버튼에 disabled 추가:
+```typescript
+<button
+  disabled={isSubmitting}
+  className="... disabled:opacity-50 disabled:cursor-not-allowed"
+>
+```
 
-zod 스키마: ProvocationPayload, EvaluationPayload
+`isSubmitting` prop 추가 or state 활용. evaluating 상태에서 버튼 비활성화.
 
-store:
-- saveBook/getBooks, saveAnnotation/getAnnotations(bookId), saveProvocation/getProvocations(bookId)/updateProvocation
-- saveReviewItem/getReviewItems(bookId), saveSettings/getSettings (rememberKey → session vs local), saveSession/getSession/updateSession
+**테스트 (1개)**: evaluating 상태 → 제출 버튼 disabled
 
-DoD: 타입 14개, zod 7/7, store 10/10
-
-### Feature 2: 컨텍스트 추출 + 프롬프트
-파일: `src/lib/extract-context.ts`, `src/lib/prompts.ts`
-테스트: `__tests__/lib/extract-context.test.ts` (6)
-
-extract-context: 선택 텍스트 기준 ±800자 추출. null이면 첫 1500자 fallback.
-prompts: 도발 생성 / 답변 평가 / 모범 답안 — 3종 프롬프트 (system + user 구조).
-- 도발: mode + intent + selectedText + context + recentProvocations(중복방지) + weakConcepts
-- 평가: answer + confidence + question + context. verdict 4분류. 칭찬 금지, 빈틈 1~2개 좁힘.
-- 모범답안: 간결 3~5문장, 빠진 부분 보충, 코치형 반말.
-- intent=null(페이지 기반): "선택 텍스트: (없음)" → AI가 맥락에서 핵심 자동 선택.
-
-DoD: extract 6/6, 프롬프트 3종 구현
-
-### Feature 3: AI Provider + 도발 생성 + 평가 + 모범답안
-파일: `src/lib/ai-provider.ts`, `src/lib/generate-provocation.ts`, `src/lib/evaluate-answer.ts`, `src/lib/generate-model-answer.ts`
-테스트: `__tests__/lib/generate-provocation.test.ts` (10), `__tests__/lib/evaluate-answer.test.ts` (7), `__tests__/lib/generate-model-answer.test.ts` (4)
-
-AiProvider interface: { generateProvocation, evaluateAnswer, generateModelAnswer }
-AnthropicProvider: Anthropic SDK, dangerouslyAllowBrowser: true
-JSON 파싱: zod + 실패 시 "반드시 JSON만" 1회 재시도. 2회 실패 → throw.
-
-DoD: 21/21 테스트
-
-### Feature 4: 약점 기록 + Export
-파일: `src/lib/build-review-items.ts`, `src/lib/export.ts`
-테스트: `__tests__/lib/build-review-items.test.ts` (8), `__tests__/lib/export.test.ts` (13)
-
-ReviewItem 생성 규칙:
-- correct → 미생성 (단, confidence=low → pending-review)
-- partial/incorrect/memorized → weak
-- conceptLabel = missingPoints[0]
-
-Export 마크다운 구조:
-- 제목 + 모드 + 날짜
-- 도발 카드들 (page, kind, intent, Q, A, confidence, verdict, retry, modelAnswer)
-- **Layer 2: 사용자 답변만 추출 (AI 텍스트 미혼합)**
-- 약점 목록
-- 리뷰 질문 (최대 5개)
-- 세션 통계: 도발 수, 판정 분포, 확신도 분포, ⚡높은확신+틀림, 읽은 범위(firstPage~lastPage), 소요 시간
-- Obsidian 프론트매터 ON/OFF
-
-DoD: 21/21 테스트
-
-### Feature 5: 핵심 상태 머신 Hook
-파일: `src/hooks/useProvocationFlow.ts`, `src/hooks/useSession.ts`, `src/hooks/useSettings.ts`
-테스트: `__tests__/hooks/useProvocationFlow.test.ts` (20), `__tests__/hooks/useSession.test.ts` (7), `__tests__/hooks/useSettings.test.ts` (5)
-
-useProvocationFlow 상태 전환:
-empty → loading → question → evaluating → evaluation(partial/incorrect/memorized) → retry → evaluating → saved
-                                        → saved (correct)
-                          evaluation → modelAnswer (2차 실패 or 정답 보기) → saved
-에러 시 state 복원 + 에러 메시지 설정.
-
-useSession: mode, book, startedAt, endedAt, firstPage, lastPage, getDuration()
-useSettings: load/save, rememberKey 분기
-
-DoD: 32/32 테스트
-
-### Feature 6: 프로젝트 셋업 + Newsprint 테마 + CORS/PDF PoC
-1. `npm create vite@latest . -- --template react-ts` (이미 init된 디렉토리에)
-2. `npm install` 전체 의존성
-3. `@tailwindcss/vite` 설정 (vite.config.ts)
-4. globals.css: Newsprint 폰트 import, 색상, 텍스처, utility class
-5. CORS 확인: dangerouslyAllowBrowser → Anthropic API 호출 테스트
-6. @react-pdf-viewer React 19 호환성 확인 → 비호환 시 react-pdf로 전환
-7. Vitest 설정
-
-DoD: npm run dev + npm test + 폰트 4종 + API 호출 성공 + PDF 렌더링
-
-### Feature 7: 온보딩 + 세션 모드
-파일: `src/components/SessionModeSelector.tsx`, `src/components/FileDropZone.tsx`, `src/App.tsx`
-테스트: `__tests__/components/SessionModeSelector.test.tsx` (6)
-
-4모드 카드 (이해/적용/시험/비판) + Newsprint 반전 스타일
-[샘플로 체험하기] → sample.pdf 로드
-API Key 없으면 Settings Dialog 자동 오픈
-
-DoD: 6/6 테스트, 온보딩→메인 전환
-
-### Feature 8: 메인 레이아웃 + PDF 뷰어
-파일: `src/components/NavBar.tsx`, `src/components/BottomBar.tsx`, `src/components/PdfViewer.tsx`
-
-70:30 Split, NavBar(책 제목 + 모드 배지 + 페이지 + Settings/Export), BottomBar(p.N/M + 진행률)
-highlight plugin + 저장된 하이라이트 복원 (renderHighlights)
-
-DoD: 레이아웃 + PDF 페이지 이동 + 하이라이트 복원
-
-### Feature 9: FloatingToolbar + Intent
-파일: `src/components/FloatingToolbar.tsx`
-테스트: `__tests__/components/FloatingToolbar.test.tsx` (7)
-
-2-step: Step 1 [🟡 Highlight][💭 Provoke] → Step 2 "왜 여기서 묻길 원해?" + 4칩(핵심/헷갈림/연결/적용)
-Newsprint: bg-[#111] text-[#F9F9F7] uppercase tracking-wider
-
-DoD: 7/7
-
-### Feature 10: SidePanel + ProvocationCard
-파일: `src/components/SidePanel.tsx`, `src/components/ProvocationCard.tsx`, `src/components/EmptyState.tsx`, `src/components/LoadingCard.tsx`
-테스트: `__tests__/components/SidePanel.test.tsx` (11), `__tests__/components/ProvocationCard.test.tsx` (9)
-
-8 state 전환. "도발해줘 💭" → SidePanel 내 Intent chips. 하단 고정(empty, question, saved).
-답변 + 확신도 둘 다 있어야 [제출] 활성화.
-
-DoD: 20/20
-
-### Feature 11: EvaluationCard + ModelAnswer + Error Loop
-파일: `src/components/EvaluationCard.tsx`, `src/components/ModelAnswerCard.tsx`
-테스트: `__tests__/components/EvaluationCard.test.tsx` (13), `__tests__/components/ModelAnswerCard.test.tsx` (3)
-
-verdict 4배지 (emerald/amber/red/neutral). correct → [저장], 나머지 → [다시 답변] primary.
-2차 실패 or [정답 보기] → 모범 답안 생성 + 표시.
-
-DoD: 16/16
-
-### Feature 12: History + Settings + Export
-파일: `src/components/HistoryList.tsx`, `src/components/SettingsDialog.tsx`, `src/components/ExportPreview.tsx`
-테스트: `__tests__/components/HistoryList.test.tsx` (5), `__tests__/components/SettingsDialog.test.tsx` (7), `__tests__/components/ExportPreview.test.tsx` (9)
-
-히스토리 미니 카드 + 클릭→페이지 점프. Settings Newsprint input. Export Layer 1+2+3+통계.
-
-DoD: 21/21
-
-### Feature 13: 에러 핸들링 + UI 폴리싱
-에러 UX: API Key 무효 → Settings 오픈, Rate limit → N초 후 재시도, 네트워크 → 재시도 버튼, 토큰 초과 → 컨텍스트 축소.
-LoadingCard 3-dot pulse. 반응형 1024+ 70:30, 768~1024 60:40.
-
-DoD: 에러 4종, pulse, 반응형
+**커밋**: `fix: prevent double-click on answer submit button`
 
 ---
 
-## 전체 DoD
-- 167/167 테스트 통과
-- tsc --noEmit 에러 0
-- 킬 테스트 1분 30초 무중단 재현
+### Fix 5: 에러 메시지 분류 — SDK instanceof 기반 (30분)
 
-## 킬 테스트 시나리오
-앱 열기 → 이해 모드 → API Key 입력 → 샘플 PDF → 텍스트 선택 → Provoke → 헷갈림 → 질문 → 답변+확신도 높음 → 제출 → 🟡 부분적 → 재답변 → ✅ 정확 → 저장 → Export → 다운로드
+`src/lib/error-classifier.ts` 생성:
+```typescript
+import { APIError, RateLimitError, AuthenticationError } from '@anthropic-ai/sdk';
 
-## 완료 시 알림
-전체 구현 완료 후 반드시 실행:
+export function classifyError(err: unknown): { message: string; type: string } {
+  if (err instanceof AuthenticationError)
+    return { message: 'API Key를 확인해주세요.', type: 'auth' };
+  if (err instanceof RateLimitError)
+    return { message: '요청이 너무 많아요. 잠시 후 다시 시도해주세요.', type: 'rate-limit' };
+  if (err instanceof TypeError && err.message?.includes('fetch'))
+    return { message: '인터넷 연결을 확인해주세요.', type: 'network' };
+  if (err instanceof APIError)
+    return { message: `API 오류: ${err.message}`, type: 'api' };
+  if (err instanceof Error)
+    return { message: err.message, type: 'unknown' };
+  return { message: '도발 생성에 실패했습니다.', type: 'unknown' };
+}
+```
+
+`src/hooks/useProvocationFlow.ts`의 catch 블록에서 `classifyError()` 사용.
+
+**테스트 (8개)** — `src/lib/error-classifier.test.ts`:
+1. AuthenticationError → "API Key를 확인해주세요"
+2. RateLimitError → "요청이 너무 많아요..."
+3. TypeError (fetch) → "인터넷 연결을 확인해주세요"
+4. APIError → "API 오류: ..."
+5. 일반 Error → err.message
+6. non-Error → "도발 생성에 실패했습니다"
+7. SDK AuthenticationError 실제 인스턴스
+8. SDK RateLimitError 실제 인스턴스
+
+**커밋**: `feat: error classifier with Anthropic SDK error types`
+
+---
+
+### Fix 6: localStorage 쓰기 방어 (20분)
+
+`src/lib/store.ts`의 `setJson()` 수정:
+```typescript
+export function setJson<T>(key: string, value: T): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn(`[store] Failed to write ${key}:`, (err as Error).message);
+    return false;
+  }
+}
+```
+
+**테스트 (3개)**: 정상→true, 용량초과→false+warn, 차단→false
+
+**커밋**: `fix: handle localStorage write failures gracefully`
+
+---
+
+### Fix 2: PDF 렌더링 + pageText 추출 (3~4시간) — 가장 큰 작업
+
+#### Step 0: 5분 PoC
 ```bash
-openclaw system event --text "Done: Reading Provocateur Phase 1 — 167 tests, all features implemented" --mode now
+npm install react-pdf pdfjs-dist
+# tsc --noEmit + 간단 <Document><Page> 렌더링 확인
+# 실패 시 pdfjs-dist 직접 사용으로 전환
+```
+
+#### PdfViewer.tsx 재작성
+
+**인터페이스** (현재 FloatingToolbar와 호환):
+```typescript
+interface PdfViewerProps {
+  fileUrl: string;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onTotalPagesChange: (total: number) => void;
+  onTextSelect: (text: string, position: { x: number; y: number }) => void;
+  onPageTextExtract: (text: string) => void;
+}
+```
+
+**핵심 구현:**
+- react-pdf `<Document>` + `<Page>` with `renderTextLayer={true}`
+- Worker 설정: `pdfjs.GlobalWorkerOptions.workerSrc`
+- `onLoadSuccess` → `onTotalPagesChange(numPages)`
+- `mouseup` → `window.getSelection()` → text + `rects[0]`에서 `{x: left, y: bottom}` 변환 → `onTextSelect`
+- **pageText 추출** (필수!): `pdfjs-dist`의 `page.getTextContent()` → `items.map(i => i.str).join(' ')` → `onPageTextExtract`
+  - 이것 없으면 `extractContext()`가 작동 불가 → 도발 생성 전체 불가능
+
+**TextLayer CSS**: `import 'react-pdf/dist/Page/TextLayer.css'` + `import 'react-pdf/dist/Page/AnnotationLayer.css'`
+
+**sample.pdf**: `public/sample.pdf` — 2~3페이지 기술 글
+
+#### 테스트 mock 전략
+
+jsdom에서 react-pdf 직접 테스트 불가 (canvas/worker 없음). Manual mock 필수:
+
+```typescript
+// src/__mocks__/react-pdf.tsx 또는 vi.mock inline
+vi.mock('react-pdf', () => ({
+  Document: ({ onLoadSuccess, children }: any) => {
+    useEffect(() => onLoadSuccess?.({ numPages: 3 }), []);
+    return <div data-testid="pdf-document">{children}</div>;
+  },
+  Page: ({ pageNumber }: any) => (
+    <div data-testid={`pdf-page-${pageNumber}`}>Page {pageNumber}</div>
+  ),
+  pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
+}));
+```
+
+#### 테스트 (6개)
+1. Document 로드 성공 → onTotalPagesChange 호출
+2. 페이지 번호 전환 → Page 컴포넌트 렌더링
+3. 텍스트 선택 → onTextSelect 콜백 (position 형식)
+4. 잘못된 PDF URL → 에러 UI 표시
+5. 빈 fileUrl은 App 레벨에서 FileDropZone 표시 (PdfViewer는 항상 fileUrl 있음)
+6. 페이지 로드 → onPageTextExtract 호출
+
+**커밋**: `feat: PDF rendering with react-pdf + page text extraction`
+
+---
+
+### Fix 3: App.tsx 통합 — ReadingView 분리 (3~4시간)
+
+#### 구조 변경 (God Component 방지)
+
+```
+App.tsx (라우팅만, ~30줄)
+  ├── OnboardingView.tsx (기존 온보딩 로직 이동)
+  └── ReadingView.tsx (메인 뷰)
+```
+
+#### App.tsx (간결하게)
+```typescript
+function App() {
+  const [view, setView] = useState<"onboarding" | "main">("onboarding");
+  const [mode, setMode] = useState<SessionMode | null>(null);
+
+  if (view === "onboarding") {
+    return <OnboardingView onModeSelect={(m) => { setMode(m); setView("main"); }} />;
+  }
+  return <ReadingView mode={mode!} />;
+}
+```
+
+#### hooks/usePdfState.ts — PDF 상태 분리
+```typescript
+export function usePdfState() {
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [book, setBook] = useState<Book | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageText, setPageText] = useState("");
+  const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [selectionPosition, setSelectionPosition] = useState<{x:number,y:number} | null>(null);
+
+  const handleFileSelect = (file: File) => {
+    const url = URL.createObjectURL(file);
+    setFileUrl(url);
+    setBook({ id: crypto.randomUUID(), fileName: file.name, totalPages: 0, currentPage: 1, addedAt: new Date().toISOString() });
+  };
+
+  const handleTextSelect = (text: string, position: {x:number,y:number}) => {
+    setSelectedText(text);
+    setSelectionPosition(position);
+  };
+
+  const clearSelection = () => { setSelectedText(null); setSelectionPosition(null); };
+
+  return { fileUrl, book, currentPage, setCurrentPage, totalPages, setTotalPages,
+           pageText, setPageText, selectedText, selectionPosition,
+           handleFileSelect, handleTextSelect, clearSelection };
+}
+```
+
+#### ReadingView.tsx — 메인 뷰 조립
+
+70:30 split 레이아웃. 모든 컴포넌트 연결:
+
+```typescript
+export function ReadingView({ mode }: { mode: SessionMode }) {
+  const pdf = usePdfState();
+  const settings = useSettings();
+  const provider = useMemo(() => new AnthropicProvider(settings.apiKey, settings.model), [settings.apiKey, settings.model]);
+  const flow = useProvocationFlow(provider);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#F9F9F7] flex flex-col">
+      <NavBar bookTitle={pdf.book?.fileName ?? ""} modeBadge={mode}
+              currentPage={pdf.currentPage} totalPages={pdf.totalPages}
+              onSettingsClick={() => setShowSettings(true)} />
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* 70% PDF */}
+        <div className="w-[70%] max-lg:w-full relative">
+          {pdf.fileUrl ? (
+            <PdfViewer fileUrl={pdf.fileUrl} currentPage={pdf.currentPage}
+                       onPageChange={pdf.setCurrentPage} onTotalPagesChange={pdf.setTotalPages}
+                       onTextSelect={pdf.handleTextSelect} onPageTextExtract={pdf.setPageText} />
+          ) : (
+            <FileDropZone onFileSelect={pdf.handleFileSelect}
+                          onSampleClick={() => { pdf.handleFileSelect(/* sample.pdf fetch */); }} />
+          )}
+          {pdf.selectedText && pdf.selectionPosition && (
+            <FloatingToolbar position={pdf.selectionPosition}
+                             onProvoke={(intent) => { flow.startProvocation(pdf.selectedText!, intent, mode, ...); pdf.clearSelection(); }}
+                             onHighlight={() => { /* highlight logic */ pdf.clearSelection(); }}
+                             onClose={pdf.clearSelection} />
+          )}
+        </div>
+
+        {/* 30% SidePanel */}
+        <div className="w-[30%] max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:w-full max-lg:h-[60vh] border-l border-[#E0E0E0]">
+          <SidePanel state={flow.state} provocation={flow.provocation}
+                     modelAnswer={flow.modelAnswer} error={flow.error}
+                     history={flow.history} hasApiKey={!!settings.apiKey}
+                     onSubmitAnswer={flow.submitAnswer} onRetry={flow.submitRetry}
+                     onSkip={flow.skipRetry} onShowAnswer={flow.showAnswer}
+                     onSave={flow.saveAndNext} onProvoke={() => {}}
+                     onPageJump={pdf.setCurrentPage} onOpenSettings={() => setShowSettings(true)} />
+        </div>
+      </div>
+
+      <BottomBar currentPage={pdf.currentPage} totalPages={pdf.totalPages} progress={0} />
+
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {showExport && <ExportPreview reviewItems={[]} onClose={() => setShowExport(false)} />}
+    </div>
+  );
+}
+```
+
+**주의**: SidePanel의 실제 props를 확인하고 매핑할 것. 위 코드는 가이드라인이며 실제 인터페이스에 맞춰 조정 필수.
+
+**주의**: NavBar/BottomBar/FloatingToolbar/SidePanel 등의 실제 props 인터페이스를 코드에서 확인 후 사용. 위 코드와 다를 수 있음.
+
+#### 반응형 (1024px 이하)
+
+Tailwind `max-lg:` 프리픽스로 1024px 이하에서 SidePanel을 fixed overlay로 전환.
+
+#### 테스트 전략
+
+App.tsx / ReadingView 테스트에서 하위 컴포넌트는 vi.mock으로 stub:
+```typescript
+vi.mock('../components/PdfViewer', () => ({ PdfViewer: (props: any) => <div data-testid="pdf-viewer" /> }));
+vi.mock('../components/SidePanel', () => ({ SidePanel: (props: any) => <div data-testid="side-panel" /> }));
+```
+
+#### 테스트 (8개)
+1. 온보딩에서 모드 선택 → ReadingView 전환
+2. ReadingView에 NavBar/BottomBar 렌더링
+3. FileDropZone 표시 (파일 없을 때)
+4. 파일 드롭 → PdfViewer 렌더링 (mock)
+5. 텍스트 선택 → FloatingToolbar 표시
+6. Intent 선택 → flow.startProvocation 호출
+7. Settings 버튼 → SettingsDialog 표시
+8. 샘플 PDF 버튼 → fileUrl 설정
+
+**커밋**: `feat: integrate all components — ReadingView with 70:30 split layout`
+
+---
+
+### Fix 7: 킬 테스트 E2E 확장 (2~3시간)
+
+#### AI mock — Playwright route intercept
+
+```typescript
+await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+  const postData = route.request().postDataJSON();
+  const systemMsg = Array.isArray(postData.system)
+    ? postData.system.map((s: any) => s.text).join(' ')
+    : postData.system || '';
+
+  if (systemMsg.includes('도발') || systemMsg.includes('provoc')) {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        content: [{ type: 'text', text: '{"kind":"recall","question":"이 개념의 핵심 원리를 설명해보세요.","targetConcept":"테스트 개념","whyThisMatters":"이해도 확인"}' }]
+      })
+    });
+  } else if (systemMsg.includes('평가') || systemMsg.includes('evaluat')) {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        content: [{ type: 'text', text: '{"verdict":"partial","confidence":"medium","explanation":"부분적으로 맞지만...","hint":"핵심 원리를 다시 생각해보세요"}' }]
+      })
+    });
+  } else {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        content: [{ type: 'text', text: '모범 답안: 이 개념의 핵심은...' }]
+      })
+    });
+  }
+});
+```
+
+#### PDF 텍스트 선택 — CustomEvent dispatch 또는 TextLayer 대기
+E2E에서 실제 PDF selection이 어려우면 dev/test 전용 이벤트 dispatch 사용.
+
+#### 테스트 (4개)
+1. 전체 플로우: 온보딩 → PDF 로드 → 텍스트 선택 → 도발 → 평가 → Export
+2. API 에러 시 에러 UI 표시
+3. Settings에서 API Key 입력 → 반영
+4. 90초 이내 전체 플로우 완료 (킬 테스트)
+
+**커밋**: `test: full flow E2E with Playwright route intercept`
+
+---
+
+## Settings 보안 경고 (Fix 1 에서 추가)
+
+SettingsDialog에 보안 경고 문구 추가:
+```
+⚠️ API Key는 브라우저에서 직접 Anthropic 서버로 전송됩니다. 개인용으로만 사용하세요.
+```
+
+**커밋**: `fix: add API key security warning to settings`
+
+---
+
+## 완료 기준
+
+```bash
+npm test          # 전체 통과 (~200 tests)
+npx tsc --noEmit  # 0 errors
+npm run build     # 성공
+npx playwright test  # E2E 통과
+```
+
+## 완료 후
+
+```bash
+openclaw system event --text "Done: RP Fix Plan — PDF rendering + App integration + E2E. Tests: $(npm test 2>&1 | grep 'Tests' | head -1)" --mode now
 ```
