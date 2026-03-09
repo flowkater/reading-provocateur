@@ -1,16 +1,20 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import type { SessionMode, HighlightIntent } from "../types";
 import { usePdfState } from "../hooks/usePdfState";
 import { useSettings } from "../hooks/useSettings";
 import { useProvocationFlow } from "../hooks/useProvocationFlow";
 import { AnthropicProvider } from "../lib/anthropic-provider";
-import { PdfViewer } from "./PdfViewer";
+import { LoadingCard } from "./LoadingCard";
 import { FileDropZone } from "./FileDropZone";
 import { FloatingToolbar } from "./FloatingToolbar";
 import { NavBar } from "./NavBar";
 import { BottomBar } from "./BottomBar";
 import { SidePanel } from "./SidePanel";
 import { SettingsDialog } from "./SettingsDialog";
+
+const PdfViewer = lazy(() =>
+  import("./PdfViewer").then((m) => ({ default: m.PdfViewer }))
+);
 
 interface ReadingViewProps {
   mode: SessionMode;
@@ -72,14 +76,16 @@ export function ReadingView({ mode }: ReadingViewProps) {
         {/* 70% PDF */}
         <div className="w-[70%] max-lg:w-full relative">
           {pdf.fileUrl ? (
-            <PdfViewer
-              fileUrl={pdf.fileUrl}
-              currentPage={pdf.currentPage}
-              onPageChange={pdf.setCurrentPage}
-              onTotalPagesChange={pdf.setTotalPages}
-              onTextSelect={pdf.handleTextSelect}
-              onPageTextExtract={pdf.setPageText}
-            />
+            <Suspense fallback={<LoadingCard message="PDF 로딩 중..." />}>
+              <PdfViewer
+                fileUrl={pdf.fileUrl}
+                currentPage={pdf.currentPage}
+                onPageChange={pdf.setCurrentPage}
+                onTotalPagesChange={pdf.setTotalPages}
+                onTextSelect={pdf.handleTextSelect}
+                onPageTextExtract={pdf.setPageText}
+              />
+            </Suspense>
           ) : (
             <FileDropZone
               onFileSelect={pdf.handleFileSelect}

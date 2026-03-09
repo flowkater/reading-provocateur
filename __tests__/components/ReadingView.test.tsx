@@ -1,25 +1,28 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-// Mock heavy components
+// Mock heavy components — PdfViewer is lazy-loaded so needs both named + default export
+const MockPdfViewer = (props: any) => (
+  <div data-testid="pdf-viewer" data-page={props.currentPage}>
+    <button
+      data-testid="simulate-text-select"
+      onClick={() => props.onTextSelect("selected text", { x: 100, y: 200 })}
+    >
+      Select Text
+    </button>
+    <button
+      data-testid="simulate-page-text"
+      onClick={() => props.onPageTextExtract("page text content")}
+    >
+      Extract Text
+    </button>
+  </div>
+);
+
 vi.mock("../../src/components/PdfViewer", () => ({
-  PdfViewer: (props: any) => (
-    <div data-testid="pdf-viewer" data-page={props.currentPage}>
-      <button
-        data-testid="simulate-text-select"
-        onClick={() => props.onTextSelect("selected text", { x: 100, y: 200 })}
-      >
-        Select Text
-      </button>
-      <button
-        data-testid="simulate-page-text"
-        onClick={() => props.onPageTextExtract("page text content")}
-      >
-        Extract Text
-      </button>
-    </div>
-  ),
+  PdfViewer: MockPdfViewer,
+  default: MockPdfViewer,
 }));
 
 vi.mock("../../src/components/SidePanel", () => ({
@@ -102,7 +105,9 @@ describe("ReadingView", () => {
 
     await userEvent.upload(fileInput, file);
 
-    expect(screen.getByTestId("pdf-viewer")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("pdf-viewer")).toBeInTheDocument();
+    });
   });
 
   it("텍스트 선택 → FloatingToolbar 표시", async () => {
@@ -112,6 +117,10 @@ describe("ReadingView", () => {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["pdf content"], "test.pdf", { type: "application/pdf" });
     await userEvent.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("simulate-text-select")).toBeInTheDocument();
+    });
 
     // Simulate text selection in PdfViewer
     fireEvent.click(screen.getByTestId("simulate-text-select"));
@@ -125,6 +134,10 @@ describe("ReadingView", () => {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["pdf content"], "test.pdf", { type: "application/pdf" });
     await userEvent.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("simulate-text-select")).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByTestId("simulate-text-select"));
     fireEvent.click(screen.getByTestId("provoke-core"));
