@@ -16,7 +16,11 @@ export async function generateModelAnswer(
 
   try {
     return await provider.generateModelAnswer(prompt);
-  } catch {
+  } catch (err) {
+    const errorType = err instanceof TypeError ? 'network' :
+      err instanceof Error && err.message.includes('401') ? 'auth' :
+      err instanceof Error && err.message.includes('429') ? 'rate-limit' : 'unknown';
+    console.warn(`[generate-model-answer] Failed (${errorType}):`, err instanceof Error ? err.message : err);
     return "모범 답안을 생성할 수 없습니다.";
   }
 }

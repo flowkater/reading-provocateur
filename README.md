@@ -1,6 +1,17 @@
-# React + TypeScript + Vite
+# Reading Provocateur
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI가 던지는 도발적 질문으로 수동적 읽기를 능동적 학습으로 전환하는 웹 앱.
+
+## ⚠️ Security Notice
+
+This app uses `dangerouslyAllowBrowser: true` to call the Anthropic API directly from the browser. Your API key is transmitted directly from the browser to Anthropic's servers and is visible in browser DevTools (Network tab). **Use only for personal/local development.** For production deployment, set up a server-side proxy (e.g., Cloudflare Worker) to keep your API key secret.
+
+## Tech Stack
+
+- Vite 6 + React 19 + TypeScript + Tailwind CSS 4
+- react-pdf 10.4.1 (PDF rendering)
+- @anthropic-ai/sdk (AI provocation)
+- Vitest + Testing Library + Playwright
 
 Currently, two official plugins are available:
 
