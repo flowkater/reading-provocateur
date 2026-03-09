@@ -217,20 +217,26 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
 
   const showAnswer = useCallback(async () => {
     if (!currentProvocation) return;
-    const modelAnswer = await genModelAnswer(provider, {
-      question: currentProvocation.question,
-      answer: currentProvocation.answer ?? "",
-      contextExcerpt: currentProvocation.contextExcerpt,
-      missingPoints: currentProvocation.evaluation?.missingPoints ?? [],
-    });
-    const updated = { ...currentProvocation, modelAnswer };
-    setCurrentProvocation(updated);
-    updateProvocation(currentProvocation.id, { modelAnswer });
+    prevStateRef.current = state;
+    try {
+      const modelAnswer = await genModelAnswer(provider, {
+        question: currentProvocation.question,
+        answer: currentProvocation.answer ?? "",
+        contextExcerpt: currentProvocation.contextExcerpt,
+        missingPoints: currentProvocation.evaluation?.missingPoints ?? [],
+      });
+      const updated = { ...currentProvocation, modelAnswer };
+      setCurrentProvocation(updated);
+      updateProvocation(currentProvocation.id, { modelAnswer });
 
-    const reviewItem = buildReviewItem(updated);
-    if (reviewItem) saveReviewItem(reviewItem);
-    setState("modelAnswer");
-  }, [provider, currentProvocation]);
+      const reviewItem = buildReviewItem(updated);
+      if (reviewItem) saveReviewItem(reviewItem);
+      setState("modelAnswer");
+    } catch (err) {
+      setState(prevStateRef.current);
+      setError(classifyError(err).message);
+    }
+  }, [provider, currentProvocation, state]);
 
   const saveAndNext = useCallback(() => {
     if (!currentProvocation) return;
