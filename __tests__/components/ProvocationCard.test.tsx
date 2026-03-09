@@ -90,4 +90,15 @@ describe("ProvocationCard", () => {
     await userEvent.click(screen.getByText("제출"));
     expect(onSubmit).toHaveBeenCalledWith("내 답변", "high");
   });
+
+  it("isSubmitting=true → 답변+확신도 있어도 제출 버튼 disabled", async () => {
+    render(
+      <ProvocationCard provocation={baseProv} onSubmit={vi.fn()} isSubmitting />
+    );
+    const textarea = screen.getByPlaceholderText(/답변/);
+    await userEvent.type(textarea, "내 답변");
+    await userEvent.click(screen.getByText("높음"));
+    const submit = screen.getByText("제출");
+    expect(submit).toBeDisabled();
+  });
 });

@@ -79,7 +79,7 @@ export function SidePanel({
         {state === "loading" && <LoadingCard message="생각 중..." />}
 
         {state === "question" && provocation && (
-          <ProvocationCard provocation={provocation} onSubmit={onSubmitAnswer} />
+          <ProvocationCard provocation={provocation} onSubmit={onSubmitAnswer} isSubmitting={false} />
         )}
 
         {state === "evaluating" && <LoadingCard message="평가 중..." />}

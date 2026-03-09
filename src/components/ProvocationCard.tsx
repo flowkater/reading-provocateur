@@ -4,6 +4,7 @@ import type { Provocation, ConfidenceLevel } from "../types";
 interface ProvocationCardProps {
   provocation: Provocation;
   onSubmit: (answer: string, confidence: ConfidenceLevel) => void;
+  isSubmitting?: boolean;
 }
 
 const CONFIDENCE_OPTIONS: { value: ConfidenceLevel; label: string }[] = [
@@ -12,11 +13,11 @@ const CONFIDENCE_OPTIONS: { value: ConfidenceLevel; label: string }[] = [
   { value: "high", label: "높음" },
 ];
 
-export function ProvocationCard({ provocation, onSubmit }: ProvocationCardProps) {
+export function ProvocationCard({ provocation, onSubmit, isSubmitting = false }: ProvocationCardProps) {
   const [answer, setAnswer] = useState("");
   const [confidence, setConfidence] = useState<ConfidenceLevel | null>(null);
 
-  const canSubmit = answer.trim().length > 0 && confidence !== null;
+  const canSubmit = answer.trim().length > 0 && confidence !== null && !isSubmitting;
 
   const handleSubmit = () => {
     if (canSubmit) {
