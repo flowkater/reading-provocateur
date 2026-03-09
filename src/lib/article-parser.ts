@@ -21,7 +21,7 @@ export async function parseArticle(url: string): Promise<Article> {
     url,
     title: parsed.title ?? doc.title,
     content: parsed.textContent,
-    htmlContent: parsed.content,
+    htmlContent: parsed.content ?? "",
     charCount: parsed.textContent.length,
     addedAt: new Date().toISOString(),
   };
