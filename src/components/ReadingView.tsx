@@ -26,13 +26,18 @@ export function ReadingView({ mode }: ReadingViewProps) {
     [settings.apiKey, settings.model]
   );
 
-  const flow = useProvocationFlow(provider, {
-    bookId: pdf.book?.id ?? "",
-    bookTitle: pdf.book?.fileName ?? "",
-    sessionMode: mode,
-    pageNumber: pdf.currentPage,
-    pageText: pdf.pageText,
-  });
+  const flowContext = useMemo(
+    () => ({
+      bookId: pdf.book?.id ?? "",
+      bookTitle: pdf.book?.fileName ?? "",
+      sessionMode: mode,
+      pageNumber: pdf.currentPage,
+      pageText: pdf.pageText,
+    }),
+    [pdf.book?.id, pdf.book?.fileName, mode, pdf.currentPage, pdf.pageText]
+  );
+
+  const flow = useProvocationFlow(provider, flowContext);
 
   const handleProvoke = (intent: HighlightIntent) => {
     flow.startProvocation({
