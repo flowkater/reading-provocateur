@@ -147,19 +147,10 @@ test.describe("Kill Test — E2E Full Flow", () => {
     await expect(modeCard).toBeVisible({ timeout: 10_000 });
     await modeCard.click();
 
-    // Should show FileDropZone or NavBar
-    const hasDropZone = await page
-      .getByText(/pdf|drop|파일|드롭/i)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    const hasNavBar = await page
-      .getByText("Settings")
-      .first()
-      .isVisible()
-      .catch(() => false);
-
-    expect(hasDropZone || hasNavBar).toBe(true);
+    // After mode selection, should show FileDropZone with drop text or Settings nav
+    await expect(
+      page.getByText(/pdf|drop|파일|드롭|Settings/i).first()
+    ).toBeVisible({ timeout: 5_000 });
   });
 
   test("Settings에서 API Key 입력 → 반영", async ({ page }) => {
