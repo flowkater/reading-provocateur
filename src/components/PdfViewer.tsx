@@ -53,7 +53,8 @@ export function PdfViewer({
         const page = await doc.getPage(currentPage);
         const content = await page.getTextContent();
         const text = content.items
-          .map((item: any) => item.str)
+          .filter((item): item is { str: string } & Record<string, unknown> => "str" in item)
+          .map((item) => item.str)
           .join(" ");
         if (!cancelled) {
           onPageTextExtract(text);
