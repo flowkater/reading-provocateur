@@ -283,40 +283,47 @@ test.describe("Kill Test — E2E Full Flow", () => {
 
     const startTime = Date.now();
 
-    // 1. Onboarding
-    await page.goto("/");
-    await page.getByText(/이해/i).first().click();
+    // 1. Onboarding → mode select + API Key setup
+    await goToMainWithApiKey(page);
 
-    // 2. API Key setup
-    await page.getByText("Settings").first().click();
-    await page.locator('input[type="password"]').fill("sk-ant-mock-key");
-    await page.getByText("Done").click();
+    // 3. PDF 로드 확인
+    await loadSamplePdf(page);
+    await expect(page.locator(".react-pdf__Document")).toBeVisible();
 
-    // 3. Use SidePanel "도발해줘" button (no PDF needed for this path)
-    const provokeBtn = page.getByText("도발해줘");
-    await expect(provokeBtn).toBeVisible({ timeout: 5_000 });
-    await provokeBtn.click();
+    // 4. 텍스트 선택
+    await simulateTextSelection(page);
 
-    // 4. Select intent
+    // 5. FloatingToolbar → Provoke 클릭
+    const floatingProvoke = page.getByText("Provoke").first();
+    await expect(floatingProvoke).toBeVisible({ timeout: 5_000 });
+    await floatingProvoke.click();
+
+    // 6. Intent 선택 → SidePanel loading
     await page.getByText("핵심").click();
 
-    // 5. Wait for question
+    // 7. 도발 질문 표시 확인
     await expect(page.getByText("이 개념의 핵심 원리를 설명해보세요.")).toBeVisible({
       timeout: 15_000,
     });
 
-    // 6. Answer
+    // 8. 답변 입력 + 제출
     await page.locator('textarea[placeholder="답변을 입력하세요..."]').fill("테스트 답변");
     await page.getByText("중간").click();
     await page.getByText("제출").click();
 
-    // 7. Evaluation
+    // 9. 평가 결과 표시 확인
     await expect(page.getByText(/partial/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("부분 정답")).toBeVisible();
 
-    // 8. Skip to save
+    // 10. 정답 보기 → 모범 답안
+    await page.getByText("정답 보기").click();
+    await expect(page.getByText("모범 답안", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/이 개념의 핵심은/)).toBeVisible();
+
+    // 11. 저장하고 넘어가기
     await page.getByText("저장하고 넘어가기").click();
 
-    // 9. Verify completion
+    // 12. 완료 → 도발해줘 버튼 다시 표시
     await expect(page.getByText("도발해줘")).toBeVisible({ timeout: 5_000 });
 
     const elapsed = Date.now() - startTime;
