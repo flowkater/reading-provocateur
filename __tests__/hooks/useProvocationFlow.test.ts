@@ -437,4 +437,26 @@ describe("useProvocationFlow", () => {
     expect(result.current.state).toBe("empty");
     expect(result.current.error).toBeTruthy();
   });
+
+  it("loading 상태에서 startProvocation 재호출 → 무시됨", async () => {
+    const genProv = vi.fn().mockImplementation(() => new Promise(() => {})); // never resolves
+    const provider = mockProvider({ generateProvocation: genProv });
+    const { result } = renderHook(() =>
+      useProvocationFlow(provider, baseContext)
+    );
+
+    // First call → goes to loading
+    act(() => {
+      result.current.startProvocation({ selectedText: "t", intent: "core" });
+    });
+    expect(result.current.state).toBe("loading");
+    expect(genProv).toHaveBeenCalledTimes(1);
+
+    // Second call while loading → ignored
+    act(() => {
+      result.current.startProvocation({ selectedText: "t2", intent: "confused" });
+    });
+    expect(result.current.state).toBe("loading");
+    expect(genProv).toHaveBeenCalledTimes(1);
+  });
 });

@@ -46,6 +46,7 @@ export function useProvocationFlow(provider: AiProvider, context: FlowContext) {
 
   const startProvocation = useCallback(
     async (input: StartInput) => {
+      if (state === "loading" || state === "evaluating") return;
       prevStateRef.current = state;
       setState("loading");
       setError(null);
